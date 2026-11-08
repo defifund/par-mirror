@@ -6,6 +6,12 @@ class TokensController < ApplicationController
     @trades = q.trades(token: @row[:token], limit: 50, fill: :later)
     @holders = q.holders(@row[:token], limit: 50)
     @ref_usd = Par::Pricing.new(current_chain).ref_usd
+    payouts = Par::Payouts.new(current_chain)
+    @distributions = payouts.distributions(@row[:token], limit: 100)
+    @distributions = nil if @distributions[:rounds].zero? && @row[:feeMode] != "holders"
+    @floor = payouts.floor(@row, quote: (@row[:feeMode] == "floor" ? (@row[:pairToken] || Par::Chains::ZERO) : nil)) if @row[:feeMode] == "floor"
+    @burns = Burn.where(chain_id: current_chain.id, token: @row[:token]).order(block_number: :desc, log_index: :desc).limit(100).to_a
+    @burn_total = Burn.where(chain_id: current_chain.id, token: @row[:token]).count
   end
 
   # /t/<16 hex>: the short link par.family wrote into each token's website field

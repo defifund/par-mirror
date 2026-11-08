@@ -1,0 +1,21 @@
+<%# Holder rewards summary: rounds paid by the original team's distributor through PairPadDisperse(V2) %>
+<% d = @distributions %>
+<div class="card stack" data-controller="rewards" data-rewards-url-value="/idx/<%= current_chain.id %>/rewards?token=<%= r[:token] %>" data-rewards-assets-value="<%= d[:totals].to_json %>">
+  <h3>Holder rewards</h3>
+  <% if d[:rounds].zero? %>
+    <p class="small muted">No payout rounds indexed for this token<%= " yet (history still syncing)" if SyncState.find_by(chain_id: current_chain.id)&.extras_cursor.to_i < SyncState.find_by(chain_id: current_chain.id)&.cursor_block.to_i %>.</p>
+  <% else %>
+    <table class="table small"><tbody>
+      <tr><td class="muted">Rounds</td><td><%= d[:rounds] %></td></tr>
+      <tr><td class="muted">Last payout</td><td><%= ago(d[:lastAt]) %> ago
+        <% if d[:lastAt] && d[:lastAt] < 1.day.ago.to_i %><span class="tag warn">stopped</span><% end %></td></tr>
+      <% d[:totals].each do |t| %>
+        <tr><td class="muted">Paid in <%= t[:symbol] %></td><td><%= compact(units(t[:total], t[:decimals])) %> <%= t[:symbol] %></td></tr>
+      <% end %>
+    </tbody></table>
+  <% end %>
+  <div class="small" data-rewards-target="mine" hidden></div>
+  <% if d[:lastAt].nil? || d[:lastAt] < 1.day.ago.to_i %>
+    <p class="small muted">Payouts were run every hour by the original team's distributor wallet; with par.family offline they have stopped. The creator share keeps accruing in the holder vault.</p>
+  <% end %>
+</div>

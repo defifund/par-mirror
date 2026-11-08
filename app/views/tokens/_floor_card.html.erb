@@ -1,0 +1,30 @@
+<%# Floor launches: the locked bid wall per quote, as last placed by PairPadFloorVault %>
+<% f = @floor; ref = current_chain.reference[:symbol]; markets = (r[:markets] || [r]).index_by { _1[:pairToken] } %>
+<div class="card stack">
+  <h3>Price floor</h3>
+  <% if f[:walls].empty? %>
+    <p class="small muted">No wall placed yet<%= " (history still syncing)" if SyncState.find_by(chain_id: current_chain.id)&.extras_cursor.to_i < SyncState.find_by(chain_id: current_chain.id)&.cursor_block.to_i %>.</p>
+  <% else %>
+    <table class="table small">
+      <thead><tr><th>Quote</th><th>Floor</th><th></th></tr></thead>
+      <tbody>
+        <% f[:walls].each do |w| %>
+          <% m = markets[w[:quote]] || {}; mp = m[:lastPriceEth].to_f; fp = w[:floorPriceEth].to_f %>
+          <tr>
+            <td><%= m[:quoteSymbol] || short(w[:quote]) %></td>
+            <td><% if w[:standing] && fp.positive? %><% if @ref_usd.positive? %>$<%= price(fp * @ref_usd) %><% else %><%= price(fp) %> <%= ref %><% end %><% else %><span class="muted">none</span><% end %></td>
+            <td><% if w[:standing] && fp.positive? && mp.positive? %>
+                  <% if mp < fp %><span class="tag warn" title="The market traded through the wall since it was last placed: it has been filled and waits for a rebalance.">below floor</span>
+                  <% else %><%= number_to_percentage((1 - fp / mp) * 100, precision: 0) %> under<% end %>
+                <% end %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+    <table class="table small"><tbody>
+      <tr><td class="muted">Wall last moved</td><td><%= explorer(current_chain, "tx", f[:walls].max_by { _1[:timestamp].to_i }[:txHash], "#{ago(f[:walls].map { _1[:timestamp].to_i }.max)} ago") %></td></tr>
+      <tr><td class="muted">Burned by the vault</td><td><%= compact(units(f[:feeBurnedToken])) %> <%= r[:symbol] %></td></tr>
+    </tbody></table>
+  <% end %>
+  <p class="small muted">The wall is a locked, quote-only position just below the market, sized to buy back the whole circulating supply. It only moves up when someone calls <span class="mono">rebalance</span> on the floor vault (anyone can; the original team's keeper used to).</p>
+</div>

@@ -9,6 +9,7 @@ import TabsController from "./tabs_controller"
 import CopyController from "./copy_controller"
 import FallbackController from "./fallback_controller"
 import AutosubmitController from "./autosubmit_controller"
+import RewardsController from "./rewards_controller"
 import ColumnsController from "./columns_controller"
 
 application.register("wallet", WalletController)
@@ -22,3 +23,4 @@ application.register("copy", CopyController)
 application.register("fallback", FallbackController)
 application.register("autosubmit", AutosubmitController)
 application.register("columns", ColumnsController)
+application.register("rewards", RewardsController)

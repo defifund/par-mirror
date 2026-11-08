@@ -48,6 +48,9 @@
       <div class="tabs">
         <button class="active" data-action="tabs#show" data-tab="trades">Trades</button>
         <button data-action="tabs#show" data-tab="holders">Holders (<%= @holders[:holders] %>)</button>
+        <% if @distributions %><button data-action="tabs#show" data-tab="rewards">Rewards (<%= @distributions[:rounds] %>)</button><% end %>
+        <button data-action="tabs#show" data-tab="burns">Burns (<%= @burn_total %>)</button>
+        <% if @floor %><button data-action="tabs#show" data-tab="floor">Floor</button><% end %>
         <button data-action="tabs#show" data-tab="info">Info</button>
       </div>
       <div data-tabs-target="panel" data-tab="trades" class="scroll">
@@ -87,6 +90,63 @@
           </tbody>
         </table>
       </div>
+      <% if @distributions %>
+      <div data-tabs-target="panel" data-tab="rewards" class="scroll" hidden>
+        <table class="table small">
+          <thead><tr><th>Age</th><th>Round</th><th>Asset</th><th>Paid</th><th>Holders</th></tr></thead>
+          <tbody>
+            <% @distributions[:items].each do |d| %>
+              <tr>
+                <td><%= explorer(current_chain, "tx", d[:txHash], ago(d[:timestamp])) %></td>
+                <td class="mono small"><%= d[:round] %></td>
+                <td><%= d[:symbol] %></td>
+                <td><%= compact(units(d[:total], d[:decimals])) %></td>
+                <td><%= d[:recipients] %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+        <% if @distributions[:items].empty? %><div class="muted small pad">No payout rounds indexed.</div><% end %>
+      </div>
+      <% end %>
+      <div data-tabs-target="panel" data-tab="burns" class="scroll" hidden>
+        <% burner = { r[:deployer] => "creator", r[:creatorFeeRecipient] => "fee recipient",
+                      current_chain.addr(:locker) => "locker · protocol share", current_chain.addr(:multi_locker) => "locker · protocol share",
+                      current_chain.addr(:burn_vault) => "buyback & burn vault", current_chain.addr(:floor_vault) => "floor vault" } %>
+        <p class="small muted"><%= compact(units(r[:burnedToken])) %> <%= r[:symbol] %> burned in total<%= " · showing the latest 100" if @burn_total > 100 %></p>
+        <table class="table small">
+          <thead><tr><th>Age</th><th>Amount</th><th>Burned by</th></tr></thead>
+          <tbody>
+            <% @burns.each do |b| %>
+              <tr>
+                <td><%= explorer(current_chain, "tx", b.tx_hash, ago(b.ts)) %></td>
+                <td><%= compact(units(b.amount)) %></td>
+                <td class="mono"><%= explorer(current_chain, "address", b.from_addr) %><% if burner[b.from_addr] %> <span class="tag"><%= burner[b.from_addr] %></span><% end %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+        <% if @burns.empty? %><div class="muted small pad">No burns.</div><% end %>
+      </div>
+      <% if @floor %>
+      <div data-tabs-target="panel" data-tab="floor" class="scroll" hidden>
+        <p class="small muted">Every placement of the <%= r[:quoteSymbol] %> wall, newest first. The floor price only ever rises.</p>
+        <table class="table small">
+          <thead><tr><th>Age</th><th>Floor</th><th>Quote in wall</th><th>Circulating</th></tr></thead>
+          <tbody>
+            <% (@floor[:history] || []).reverse.first(200).each do |w| %>
+              <tr>
+                <td><%= explorer(current_chain, "tx", w[:txHash], ago(w[:timestamp])) %></td>
+                <td><% if w[:floorPriceEth] %><% if @ref_usd.positive? %>$<%= price(w[:floorPriceEth] * @ref_usd) %><% else %><%= price(w[:floorPriceEth]) %><% end %><% else %><span class="muted">none</span><% end %></td>
+                <td><%= compact(units(w[:quoteInWall], r[:quoteDecimals] || 18)) %> <%= r[:quoteSymbol] %></td>
+                <td><%= compact(units(w[:circulating])) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+        <% if @floor[:history].blank? %><div class="muted small pad">No wall placements indexed.</div><% end %>
+      </div>
+      <% end %>
       <div data-tabs-target="panel" data-tab="info" hidden>
         <table class="table small"><tbody>
           <tr><td class="muted">Kind</td><td><%= r[:kind] == "multi" ? "multi-market (#{r[:marketCount]})" : "single market" %></td></tr>
@@ -103,6 +163,8 @@
 
   <div class="col-side">
     <%= render "tokens/trade", r: %>
+    <%= render("tokens/floor_card", r:) if @floor %>
+    <%= render("tokens/rewards_card", r:) if @distributions %>
     <%= render "tokens/fees", r: %>
   </div>
 </div>
