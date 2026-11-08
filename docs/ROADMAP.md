@@ -28,7 +28,7 @@ Status legend: [x] done · [~] in progress · [ ] to do · [!] blocked on the us
 
 ## 4. Page features the original had
 - [ ] Create: drag & drop / paste image, "Stocks" quick-pick category, token search by name for the pair
-- [ ] Stats: "Copy as text", holder payouts chart, fee split section
+- [x] Stats: "Copy as text", holder payouts + wallets-paid charts, fee split section, leaderboards (volume, fees, holder payouts), per-chain cards, wallet counts
 - [x] Token page: holder-reward rounds (+ connected wallet's own rewards), burns list with burner labels, floor wall card + history
 - [ ] Live updates (Turbo Streams from the sync job) instead of polling
 - [ ] Profiles (name / bio next to an address) — originally team-hosted; rebuild as wallet-signed (SIWE) profiles

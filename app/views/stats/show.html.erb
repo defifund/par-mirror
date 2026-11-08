@@ -8,6 +8,18 @@
   <% end %>
 </div>
 
+<% d = @daily; days = d[:days]; span = d[:range] == "all" ? "all time" : "last #{d[:range].delete('d')} days" %>
+<div class="filters">
+  <div class="tabs">
+    <% { "7d" => "7d", "30d" => "30d", "90d" => "90d", "all" => "All" }.each do |k, label| %>
+      <%= link_to label, stats_path(range: k, chain: (@chain_tab unless @chain_tab == "all")), class: ("active" if d[:range] == k) %>
+    <% end %>
+  </div>
+  <button class="btn small" data-controller="copy" data-copy-text-value="<%= stats_text(s, d, @leaders, @chain_tab) %>" data-action="copy#copy">Copy as text</button>
+  <span class="small muted"><%= Time.at(d[:from]).utc.strftime("%b %-d") %> – <%= Time.at(d[:to]).utc.strftime("%b %-d, %Y") %><%= " (latest indexed day)" if @syncs.any?(&:backfilling) %></span>
+</div>
+
+
 <div class="stat-tiles">
   <div class="card"><span class="muted small">Volume, all time</span><b><%= usd(s[:volumeEth] * u) %></b><span class="small muted"><%= compact(s[:volumeEth]) %> <%= ref %> · 24h <%= compact(s[:volume24hEth]) %></span></div>
   <div class="card"><span class="muted small">Paid to creators</span><b><%= usd(s[:creatorEarnedEth] * u) %></b><span class="small muted"><%= compact(s[:creatorEarnedEth]) %> <%= ref %></span></div>
@@ -16,13 +28,13 @@
   <div class="card"><span class="muted small">Trades</span><b><%= compact(s[:trades], 1) %></b><span class="small muted"><%= compact(s[:trades24h], 1) %> in 24h</span></div>
   <div class="card"><span class="muted small">Holder positions</span><b><%= compact(s[:holders], 1) %></b><span class="small muted">across <%= s[:tokensWithHolders] %> tokens</span></div>
   <% if s[:par] %>
-    <div class="card"><span class="muted small">$par burned</span><b><%= compact(units(s[:par][:burned])) %></b><span class="small muted"><%= @buybacks ? "#{@buybacks[:count]} buybacks, #{compact(@buybacks[:ethSpent])} #{ref} spent" : "" %></span></div>
+    <div class="card"><span class="muted small">$par burned</span><b><%= compact(units(s[:par][:burned])) %></b><span class="small muted"><%= @buybacks ? "#{@buybacks[:count]} buybacks, #{compact(@buybacks[:ethSpent])} ETH spent" : "" %></span></div>
   <% end %>
 </div>
 
 <div class="card">
   <h3>Launched through this mirror</h3>
-  <p class="small muted">Tokens whose launch transaction carries this mirror's salt tag <%= "(since block #{number_with_delimiter(s[:mirror][:since])})" if s[:mirror][:since] %>.
+  <p class="small muted">Tokens whose launch transaction carries this mirror's salt tag <%= "(since block #{number_with_delimiter(s[:mirror][:since])})" if s[:mirror][:since].to_i.positive? %>.
     Their protocol share still goes to the original par fee splitter; it is shown here as what an own factory would have earned.</p>
   <div class="stat-tiles">
     <div class="card"><span class="muted small">Tokens</span><b><%= s[:mirror][:launches] %></b></div>
@@ -30,16 +42,6 @@
     <div class="card"><span class="muted small">Paid to their creators</span><b><%= usd(s[:mirror][:creatorFeesEth] * u) %></b></div>
     <div class="card"><span class="muted small">Protocol share (to the original team)</span><b><%= usd(s[:mirror][:protocolFeesEth] * u) %></b><span class="small muted"><%= compact(s[:mirror][:protocolFeesEth]) %> <%= ref %></span></div>
   </div>
-</div>
-
-<% d = @daily; days = d[:days]; span = d[:range] == "all" ? "all time" : "last #{d[:range].delete('d')} days" %>
-<div class="filters">
-  <div class="tabs">
-    <% { "7d" => "7d", "30d" => "30d", "90d" => "90d", "all" => "All" }.each do |k, label| %>
-      <%= link_to label, stats_path(range: k, chain: (@chain_tab unless @chain_tab == "all")), class: ("active" if d[:range] == k) %>
-    <% end %>
-  </div>
-  <span class="small muted"><%= Time.at(d[:from]).utc.strftime("%b %-d") %> – <%= Time.at(d[:to]).utc.strftime("%b %-d, %Y") %><%= " (latest indexed day)" if @syncs.any?(&:backfilling) %></span>
 </div>
 
 <div class="chart-grid">
@@ -59,9 +61,81 @@
   <% end %>
 </div>
 
-<div class="card" style="margin-top:16px">
-  <h3>Launches by fee mode</h3>
-  <table class="table"><thead><tr><th>Mode</th><th>Tokens</th><th>Creator share earned</th></tr></thead><tbody>
-    <% s[:feeModes].each do |m| %><tr><td><%= m[:mode] %></td><td><%= m[:launches] %></td><td><%= compact(m[:creatorFeesEth]) %> <%= ref %> · <%= usd(m[:creatorFeesEth] * u) %></td></tr><% end %>
-  </tbody></table>
+<% win_creator = days.sum { _1[:creatorFeesUsd] }; win_proto = days.sum { _1[:protocolFeesUsd] } %>
+<div class="stat-tiles" style="margin-top:16px">
+  <div class="card"><span class="muted small">To creators &amp; holders, <%= span %></span><b><%= usd(win_creator) %></b></div>
+  <div class="card"><span class="muted small">To the protocol, <%= span %></span><b><%= usd(win_proto) %></b><span class="small muted">token side burned; quote side buys &amp; burns $par (60%), rest to the original team</span></div>
+  <div class="card"><span class="muted small">Paid out to holders, all time</span><b><%= usd(s[:payoutsEth] * u) %></b><span class="small muted">in <%= number_with_delimiter(s[:payouts]) %> wallet payouts</span></div>
 </div>
+
+<h2 class="section">Holders</h2>
+<p class="muted small">What holders of fees-to-holders tokens received per day (valued at today's prices). The original team's distributor paid them hourly; with par.family offline the payouts have stopped.</p>
+<div class="chart-grid">
+  <%= render "stats/columns", title: "Holder payouts", sub: "Paid to holders per day, in USD", total: usd(days.sum { _1[:payoutsUsd] }),
+             days:, series: [{ key: :payoutsUsd, label: "Paid" }], format: "usd" %>
+  <%= render "stats/columns", title: "Wallets paid", sub: "Distinct wallets receiving a payout per day", total: number_with_delimiter(days.map { _1[:walletsPaid] }.max.to_i) + " peak",
+             days:, series: [{ key: :walletsPaid, label: "Wallets" }], format: "count" %>
+</div>
+<div class="stat-tiles">
+  <div class="card"><span class="muted small">Wallets holding a par token now</span><b><%= number_with_delimiter(s[:holderWallets]) %></b></div>
+  <div class="card"><span class="muted small">Wallets that ever traded</span><b><%= number_with_delimiter(s[:traderWallets]) %></b></div>
+  <div class="card"><span class="muted small">Payout rounds, <%= span %></span><b><%= number_with_delimiter(days.sum { _1[:payoutRounds] }) %></b><span class="small muted">one per token, asset and hour</span></div>
+</div>
+
+<h2 class="section">Where fees go</h2>
+<div class="two-col">
+  <div class="col-main card">
+    <h3>Launches and creator fees by mode</h3>
+    <% labels = { "creator" => "To creator", "holders" => "To holders", "burn" => "Buyback & burn", "floor" => "Floor mode" }
+       n_all = s[:feeModes].sum { _1[:launches] }.nonzero? || 1; f_all = s[:feeModes].sum { _1[:creatorFeesEth] }.nonzero? || 1 %>
+    <table class="table"><thead><tr><th>Mode</th><th>Tokens</th><th>Creator share earned, all time</th></tr></thead><tbody>
+      <% s[:feeModes].each do |m| %>
+        <tr><td><%= labels[m[:mode]] %></td>
+          <td><%= m[:launches] %> <span class="muted small"><%= number_to_percentage(m[:launches] * 100.0 / n_all, precision: 0) %></span></td>
+          <td><%= usd(m[:creatorFeesEth] * u) %> <span class="muted small"><%= number_to_percentage(m[:creatorFeesEth] * 100.0 / f_all, precision: 0) %></span></td></tr>
+      <% end %>
+    </tbody></table>
+  </div>
+  <div class="col-side card">
+    <h3>How fees are split</h3>
+    <table class="table small"><tbody>
+      <tr><td class="muted">Pool fee</td><td>per swap: base fee split 50/50 creator / protocol, plus the creator tax (100% creator)</td></tr>
+      <tr><td class="muted">Protocol share in the token</td><td>burned</td></tr>
+      <tr><td class="muted">Protocol share in the quote</td><td>60% buys and burns $par, 40% operations (80/20 on the v1 splitter); still flows to the original team's splitter</td></tr>
+      <tr><td class="muted">Creator share</td><td>kept, or to holders / buyback &amp; burn / floor if opted in</td></tr>
+    </tbody></table>
+  </div>
+</div>
+
+<h2 class="section">Leaderboards</h2>
+<p class="muted small">Top tokens of the <%= span %>. $par is left out of the rankings.</p>
+<div class="chart-grid">
+  <% { volume: "By volume", fees: "By fees to creators & holders", payouts: "By holder payouts" }.each do |k, title| %>
+    <div class="card">
+      <h3><%= title %></h3>
+      <% if @leaders[k].empty? %><p class="muted small">Nothing in this window yet.</p><% else %>
+        <table class="table small"><tbody>
+          <% @leaders[k].each_with_index do |l, i| %>
+            <tr><td class="muted"><%= i + 1 %></td>
+              <td><%= link_to "$#{l[:symbol]}", token_path(chain: l[:chain], token: l[:token]) %><% if @chain_tab == "all" %> <%= chain_badge(l[:chain]) %><% end %></td>
+              <td class="right"><%= usd(l[:valueUsd]) %></td></tr>
+          <% end %>
+        </tbody></table>
+      <% end %>
+    </div>
+  <% end %>
+</div>
+
+<% if @per_chain %>
+  <h2 class="section">Chains</h2>
+  <p class="muted small">The same figures per chain. Click one to filter the page.</p>
+  <div class="stat-tiles">
+    <% @per_chain.each do |c, st| %>
+      <%= link_to stats_path(chain: c.slug, range: params[:range].presence), class: "card chain-card" do %>
+        <span class="muted small"><%= chain_badge(c.slug) %> <%= c.name %></span>
+        <b><%= usd(st[:volumeEth] * st[:refUsd]) %></b>
+        <span class="small muted">volume · <%= usd((st[:creatorEarnedEth] + st[:protocolFeesEth]) * st[:refUsd]) %> fees · <%= st[:launches] %> tokens</span>
+      <% end %>
+    <% end %>
+  </div>
+<% end %>
