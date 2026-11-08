@@ -14,6 +14,7 @@ module Par
     end
 
     RATE_LIMIT = /rate limit|too many requests|request limit reached|reached .*limit/i
+    TRANSIENT = /node error|header not found|upstream|timeout|timed out|temporarily unavailable|internal error|no backend|bad gateway/i
 
     # One rate limiter per chain for the whole process: the sync, quote refresh and trader backfill
     # share the public RPC's budget instead of each assuming it has all of it.
@@ -49,8 +50,23 @@ module Par
           sleep pause
           next
         end
-        json = JSON.parse(res.body)
-        raise Error.new(json.dig("error", "code"), json.dig("error", "message").to_s) if json["error"]
+        json = begin
+          JSON.parse(res.body)
+        rescue JSON::ParserError
+          raise Error.new(res.code, "non-JSON response") if (attempt += 1) > 8
+          sleep(2**[attempt, 5].min)
+          next
+        end
+        if (err = json["error"])
+          msg = err["message"].to_s
+          # public load balancers (publicnode "broker: node error", "header not found" behind the head …)
+          # fail single requests now and then: retry those instead of restarting the whole range
+          if msg =~ TRANSIENT && (attempt += 1) <= 8
+            sleep(2**[attempt, 5].min)
+            next
+          end
+          raise Error.new(err["code"], msg)
+        end
         return json["result"]
       end
     end

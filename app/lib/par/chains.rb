@@ -46,7 +46,7 @@ module Par
       },
       5042 => {
         slug: "arc", name: "Arc", rpc: "https://rpc.mainnet.arc.io", explorer: "https://arcscan.app",
-        deploy_block: 21_074_807, log_span: 5_000, ts_granularity: 500, rps: 4,
+        deploy_block: 21_074_807, log_span: 2_000, ts_granularity: 500, rps: 4, max_addresses: 20, # node rejects >20 addresses as "requested range too large"
         reference: { symbol: "USDC", decimals: 6, native: false, address: "0x3600000000000000000000000000000000000000", wrapped: "0x3600000000000000000000000000000000000000", usd_is_one: true },
         position_manager: "0x6049c9a0e26405C0985f9E3685C87d0aE917f82B",
         addresses: EVM_PAR.merge(pool_manager: "0x8366a39CC670B4001A1121B8F6A443A643e40951", weth: "0x3600000000000000000000000000000000000000",
