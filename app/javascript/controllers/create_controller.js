@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { encodeFunctionData, parseAbi, parseUnits, zeroAddress, toHex, decodeEventLog } from "viem"
-import { factoryAbi, multiFactoryAbi, multiRouterAbi, quotePricerAbi, erc20Abi, getEthRoute, buildLegs } from "par-sdk"
+import { factoryAbi, multiFactoryAbi, multiRouterAbi, quotePricerAbi, erc20Abi, getEthRoute, buildLegs, buildApprove } from "par-sdk"
 
 // PairPadRouter.launchAndBuyWithEth (from par-sdk abi/PairPadRouter.json; the SDK's own routerAbi omits it)
 const routerAbi = parseAbi([
@@ -29,7 +29,7 @@ export default class extends Controller {
     this.ci = this.chainValue
     this.a = this.ci.addresses
     this.pc = publicClient(this.ci)
-    this.pairs = [{ address: zeroAddress, symbol: this.ci.reference.symbol, decimals: 18 }]
+    this.pairs = [{ address: this.ci.reference.address.toLowerCase(), symbol: this.ci.reference.symbol, decimals: this.ci.reference.decimals }]
     this.feeMode = "creator"
     this.renderPairs()
     try {
@@ -70,7 +70,9 @@ export default class extends Controller {
     this.submitTarget.disabled = !ok
   }
 
-  get multi() { return this.pairs.length > 1 }
+  // chains whose reference asset is an ERC-20 (Arc's USDC) launch through the multi-market router only
+  get native() { return this.ci.reference.native }
+  get multi() { return this.pairs.length > 1 || !this.native }
 
   get launchFee() { return this.multi ? this.econ?.multiLaunchFee : this.econ?.launchFee }
 
@@ -103,7 +105,7 @@ export default class extends Controller {
       if (!/^0x[0-9a-f]{40}$/.test(addr)) throw new Error("Not an address")
       if (this.pairs.some((p) => p.address === addr)) return
       if (this.pairs.length >= MAX_MARKETS) throw new Error(`At most ${MAX_MARKETS} markets`)
-      if (addr !== zeroAddress) {
+      if (addr !== zeroAddress && addr !== this.ci.reference.address.toLowerCase()) {
         const ok = await this.pc.readContract({ address: this.a.quotePricer, abi: quotePricerAbi, functionName: "isPriceable", args: [addr] })
         if (!ok) throw new Error("The on-chain pricer cannot price this asset (it needs a deep enough Uniswap route to ETH)")
       }
@@ -151,7 +153,6 @@ export default class extends Controller {
       const { address } = walletState()
       if (!address) throw new Error("Connect a wallet first")
       if (!this.econ) throw new Error("Factory terms are not loaded yet")
-      if (!this.ci.reference.native) throw new Error("Launching from this mirror needs a chain whose reference asset is native (Robinhood Chain)")
       const name = this.nameTarget.value.trim(), symbol = this.symbolTarget.value.trim().toUpperCase()
       if (!name || !symbol) throw new Error("Name and ticker are required")
       if (!this.modesValue.includes(this.feeMode)) throw new Error(`The "${this.feeMode}" fee mode is not available on this mirror`)
@@ -166,7 +167,7 @@ export default class extends Controller {
         expectedEconomics: "0x" + "0".repeat(64), // unpinned: quotes priced off live pools move every block
         salt: toHex(crypto.getRandomValues(new Uint8Array(24))) + MIRROR_TAG, // 24 random bytes + tag
       }
-      const buy = this.devBuyTarget.value ? parseUnits(this.devBuyTarget.value.replace(",", "."), 18) : 0n
+      const buy = this.devBuyTarget.value ? parseUnits(this.devBuyTarget.value.replace(",", "."), this.ci.reference.decimals) : 0n
       let tx
       if (!this.multi) {
         const p = this.pairs[0]
@@ -177,8 +178,19 @@ export default class extends Controller {
       } else {
         const routes = await Promise.all(this.pairs.map((p) => getEthRoute(this.pc, p.address, this.ci.id)))
         const legs = buy > 0n ? buildLegs({ markets: this.pairs.map((_, i) => ({ index: i })) }, routes, buy, "buy") : []
-        tx = { to: this.a.multiRouter, value: this.launchFee + buy,
-               data: encodeFunctionData({ abi: multiRouterAbi, functionName: "launchAndBuyWithEth", args: [params, 0n, this.pairs.map((p) => p.address), legs, 0n] }) }
+        const pairTokens = this.pairs.map((p) => p.address)
+        if (this.native) {
+          tx = { to: this.a.multiRouter, value: this.launchFee + buy,
+                 data: encodeFunctionData({ abi: multiRouterAbi, functionName: "launchAndBuyWithEth", args: [params, 0n, pairTokens, legs, 0n] }) }
+        } else {
+          // ERC-20 reference (USDC on Arc): the opening buy is pulled from an allowance; the launch fee is still `value`
+          if (buy > 0n) {
+            const allowance = await this.pc.readContract({ address: this.ci.reference.address, abi: erc20Abi, functionName: "allowance", args: [address, this.a.multiRouter] })
+            if (allowance < buy) { btn.textContent = "Approving USDC…"; await sendTx(this.ci, buildApprove(this.ci.reference.address, this.a.multiRouter)) }
+          }
+          tx = { to: this.a.multiRouter, value: this.launchFee,
+                 data: encodeFunctionData({ abi: multiRouterAbi, functionName: "launchAndBuyWithReference", args: [params, 0n, pairTokens, legs, buy, 0n] }) }
+        }
       }
       btn.disabled = true
       btn.textContent = "Confirm in your wallet…"

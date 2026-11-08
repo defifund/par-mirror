@@ -1,6 +1,11 @@
 <% content_for :title, "Create a token"; a = current_chain; ref = a.reference[:symbol] %>
 <div class="narrow" data-controller="create" data-create-chain-value="<%= chain_payload %>" data-create-modes-value="<%= Par::FeeModes.launchable_keys.to_json %>">
   <h1>Create a token</h1>
+  <div class="tabs" style="margin-bottom:16px">
+    <% Par::Chains.enabled.each do |c| %>
+      <%= link_to c.name, new_launch_path(chain: c.slug), class: ("active" if c.id == a.id) %>
+    <% end %>
+  </div>
   <div class="msg err" data-create-target="status" hidden></div>
   <p class="muted">Fixed supply of 1,000,000,000, all of it in a Uniswap v4 pool locked forever and tradable everywhere from the first block. Every token opens at the same market cap, <span data-create-target="startMcap">…</span>.</p>
 
@@ -24,8 +29,8 @@
     <h3>02 · Pick a pair</h3>
     <p class="small muted">Same starting market cap whichever you choose. Two to five pairs make a multi-market token, one pool per asset.</p>
     <div class="row gap wrap">
-      <button class="chip on" data-action="create#togglePreset" data-address="<%= Par::Chains::ZERO %>" data-symbol="<%= ref %>" data-decimals="18"><%= ref %></button>
-      <button class="chip" data-action="create#togglePreset" data-address="<%= a.addr(:usdg) %>" data-symbol="USDG" data-decimals="6">USDG</button>
+      <button class="chip on" data-action="create#togglePreset" data-address="<%= a.reference[:address].downcase %>" data-symbol="<%= ref %>" data-decimals="<%= a.reference[:decimals] %>"><%= ref %></button>
+      <button class="chip" data-action="create#togglePreset" data-address="<%= a.addr(:usdg) %>" data-symbol="<%= { 4663 => "USDG", 8453 => "USDC", 5042 => "EURC", 56 => "USDT" }[a.id] %>" data-decimals="<%= a.id == 56 ? 18 : 6 %>"><%= { 4663 => "USDG", 8453 => "USDC", 5042 => "EURC", 56 => "USDT" }[a.id] %></button>
       <% if a.addr(:par) != Par::Chains::ZERO %><button class="chip" data-action="create#togglePreset" data-address="<%= a.addr(:par) %>" data-symbol="par" data-decimals="18">par</button><% end %>
     </div>
     <div class="row gap">

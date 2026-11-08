@@ -81,7 +81,7 @@ module Par
 
     module_function
 
-    def enabled_ids = ENV.fetch("PAR_CHAINS", "4663").split(",").map { |s| id_for(s.strip) }
+    def enabled_ids = ENV.fetch("PAR_CHAINS", "4663,8453,5042").split(",").map { |s| id_for(s.strip) }
 
     def id_for(slug_or_id)
       return slug_or_id if slug_or_id.is_a?(Integer)

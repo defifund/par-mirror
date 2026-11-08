@@ -1,55 +1,14 @@
 <% content_for :title, "Portfolio"; ref = current_chain.reference[:symbol] %>
-<div data-controller="portfolio" data-portfolio-chain-value="<%= chain_payload %>" data-portfolio-owner-value="<%= @owner %>">
+<div>
   <h1>Portfolio</h1>
-  <% if @data.nil? %>
-    <div class="card"><p class="muted">Connect a wallet to see what you hold, what you launched and the creator fees waiting for you, or open <code>/portfolio?owner=0x…</code> for any address.</p>
+  <% if @owner.nil? %>
+    <div class="card"><p class="muted">Connect a wallet to see what you hold, what you launched and the creator fees waiting for you on every chain, or open <code>/portfolio?owner=0x…</code> for any address.</p>
       <button class="btn primary" data-action="wallet#login">Connect</button></div>
   <% else %>
-    <p class="muted mono"><%= explorer(current_chain, "address", @owner, @owner) %></p>
-
-    <section class="card">
-      <h3>Creator fees to claim</h3>
-      <p class="small muted">Creator shares wait in the fee escrow (<%= short(current_chain.addr(:fee_escrow)) %>) until the recipient claims them. Collect fees on a token page first to move the newest ones in.</p>
-      <div data-portfolio-target="claimable" class="small">Loading…</div>
-    </section>
-
-    <section class="card">
-      <h3>Holdings</h3>
-      <% if @data[:positions].empty? %><p class="muted small">No par tokens held<%= " (yet: history is still syncing)" if SyncState.find_by(chain_id: current_chain.id)&.backfilling %>.</p><% else %>
-        <table class="table">
-          <thead><tr><th>Token</th><th>Balance</th><th>Value</th><th>Bought</th><th>Sold</th></tr></thead>
-          <tbody>
-            <% @data[:positions].each do |p| r = p[:launch] %>
-              <tr>
-                <td><%= link_to token_path(chain: current_chain.slug, token: r[:token]), class: "row gap" do %><%= token_logo(r, size: 24) %> <%= r[:name] %> <span class="muted">$<%= r[:symbol] %></span><% end %></td>
-                <td><%= compact(units(p[:balance])) %></td>
-                <td><%= usd(p[:valueUsd]) %> <span class="muted small"><%= compact(p[:valueEth]) %> <%= ref %></span></td>
-                <td><%= compact(p[:costEth]) %> <%= ref %></td>
-                <td><%= compact(p[:proceedsEth]) %> <%= ref %></td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      <% end %>
-    </section>
-
-    <section class="card">
-      <h3>Launched or receiving fees</h3>
-      <% if @data[:launched].empty? %><p class="muted small">None.</p><% else %>
-        <table class="table">
-          <thead><tr><th>Token</th><th>Market cap</th><th>Creator earned</th><th>Fee mode</th></tr></thead>
-          <tbody>
-            <% @data[:launched].each do |r| %>
-              <tr>
-                <td><%= link_to "#{r[:name]} ($#{r[:symbol]})", token_path(chain: current_chain.slug, token: r[:token]) %></td>
-                <td><%= usd(r[:marketCapUsd]) %></td>
-                <td><%= compact(r[:creatorFeesEth]) %> <%= ref %></td>
-                <td><%= r[:feeMode] %></td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      <% end %>
-    </section>
+    <p class="muted mono"><%= @owner %></p>
+    <% if @sections.empty? %><div class="card"><p class="muted">Nothing on any par chain for this address yet.</p></div><% end %>
+    <% @sections.each do |chain, data| %>
+      <%= render "portfolios/chain", chain:, data:, owner: @owner %>
+    <% end %>
   <% end %>
 </div>

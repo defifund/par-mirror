@@ -50,5 +50,8 @@ module ParHelper
     end
   end
 
+  CHAIN_SHORT = { "rh" => "RH", "arc" => "ARC", "base" => "BASE", "bnb" => "BNB" }.freeze
+  def chain_badge(slug) = tag.span(CHAIN_SHORT[slug] || slug.to_s.upcase, class: "chain-badge chain-#{slug}")
+
   def safe_url(u) = u.to_s.match?(%r{\Ahttps?://}) ? u : nil
 end

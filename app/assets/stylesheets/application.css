@@ -195,3 +195,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   .form .span2 { grid-column: auto; }
   .token-head { flex-direction: column; }
 }
+
+/* chain badges (text tokens on a tinted surface; identity also given by the label text) */
+.chain-badge { display: inline-block; padding: 0 6px; margin-right: 4px; border-radius: 6px; font-size: 10px; font-weight: 700; letter-spacing: .04em; vertical-align: 1px; background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+.toolbar { row-gap: 10px; }
+.chain-title { font-size: 18px; margin: 28px 0 12px; display: flex; align-items: center; gap: 8px; }

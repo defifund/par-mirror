@@ -1,7 +1,12 @@
 <% content_for :title, "Stats"; s = @stats; ref = s[:refSymbol]; u = s[:refUsd] %>
 <h1>Stats</h1>
-<p class="muted">Every launch on par on <%= current_chain.name %>, recomputed from chain events by this mirror.
-  <% if @sync&.backfilling %><span class="pill warn">history <%= @sync.progress.round(1) %>% replayed, totals are partial</span><% end %></p>
+<p class="muted">Every launch on par<%= @chain_tab == "all" ? " across #{Par::Chains.enabled.map(&:name).to_sentence}, in USD" : " on #{Par::Chains.get(@chain_tab).name}" %>, recomputed from chain events by this mirror.
+  <% @syncs.select(&:backfilling).each do |sy| %><span class="pill warn"><%= sy.chain.slug.upcase %> history <%= sy.progress.round(1) %>% replayed</span> <% end %></p>
+<div class="tabs" style="margin-bottom:16px">
+  <% (["all"] + Par::Chains.enabled.map(&:slug)).each do |slug| %>
+    <%= link_to(slug == "all" ? "All chains" : ParHelper::CHAIN_SHORT[slug], stats_path(chain: (slug unless slug == "all"), range: params[:range].presence), class: ("active" if @chain_tab == slug)) %>
+  <% end %>
+</div>
 
 <div class="stat-tiles">
   <div class="card"><span class="muted small">Volume, all time</span><b><%= usd(s[:volumeEth] * u) %></b><span class="small muted"><%= compact(s[:volumeEth]) %> <%= ref %> · 24h <%= compact(s[:volume24hEth]) %></span></div>
@@ -17,7 +22,7 @@
 
 <div class="card">
   <h3>Launched through this mirror</h3>
-  <p class="small muted">Tokens whose launch transaction carries this mirror's salt tag (since block <%= number_with_delimiter(s[:mirror][:since]) %>).
+  <p class="small muted">Tokens whose launch transaction carries this mirror's salt tag <%= "(since block #{number_with_delimiter(s[:mirror][:since])})" if s[:mirror][:since] %>.
     Their protocol share still goes to the original par fee splitter; it is shown here as what an own factory would have earned.</p>
   <div class="stat-tiles">
     <div class="card"><span class="muted small">Tokens</span><b><%= s[:mirror][:launches] %></b></div>
@@ -31,10 +36,10 @@
 <div class="filters">
   <div class="tabs">
     <% { "7d" => "7d", "30d" => "30d", "90d" => "90d", "all" => "All" }.each do |k, label| %>
-      <%= link_to label, stats_path(range: k), class: ("active" if d[:range] == k) %>
+      <%= link_to label, stats_path(range: k, chain: (@chain_tab unless @chain_tab == "all")), class: ("active" if d[:range] == k) %>
     <% end %>
   </div>
-  <span class="small muted"><%= Time.at(d[:from]).utc.strftime("%b %-d") %> – <%= Time.at(d[:to]).utc.strftime("%b %-d, %Y") %><%= " (latest indexed day)" if @sync&.backfilling %></span>
+  <span class="small muted"><%= Time.at(d[:from]).utc.strftime("%b %-d") %> – <%= Time.at(d[:to]).utc.strftime("%b %-d, %Y") %><%= " (latest indexed day)" if @syncs.any?(&:backfilling) %></span>
 </div>
 
 <div class="chart-grid">
@@ -48,7 +53,7 @@
              days:, series: [{ key: :traders, label: "Traders" }], format: "count" %>
   <%= render "stats/columns", title: "New tokens", sub: "Launches per day", total: number_with_delimiter(days.sum { _1[:launches] }),
              days:, series: [{ key: :launches, label: "Launches" }], format: "count" %>
-  <% if current_chain.addr(:par) != Par::Chains::ZERO %>
+  <% if @stats[:par] %>
     <%= render "stats/columns", title: "$par burned by buybacks", sub: "Protocol fees buy $par and burn it", total: compact(days.sum { _1[:parBurned] }),
                days:, series: [{ key: :parBurned, label: "$par burned" }], format: "count" %>
   <% end %>

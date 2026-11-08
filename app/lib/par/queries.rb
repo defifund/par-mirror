@@ -131,10 +131,10 @@ module Par
 
     # Daily series for the stats charts. The window ends at the last indexed day (today once the
     # history is replayed), so a partially synced index still shows its most recent month.
-    def daily(range)
+    def daily(range, end_day: nil)
       days = RANGES.fetch(range) { 30 }
       last_ts = Trade.where(chain_id: @chain.id).maximum(:ts) || Time.now.to_i
-      end_day = last_ts - last_ts % 86_400
+      end_day ||= last_ts - last_ts % 86_400
       start_day = days ? end_day - (days - 1) * 86_400 : (Launch.where(chain_id: @chain.id).minimum(:launched_at) || end_day).then { _1 - _1 % 86_400 }
       day = Arel.sql("(t.ts / 86400) * 86400")
       trades = Trade.from("trades t").where("t.chain_id = ? AND t.ts >= ? AND t.ts < ?", @chain.id, start_day, end_day + 86_400)
@@ -161,6 +161,37 @@ module Par
             creatorFeesUsd: creator * usd, protocolFeesUsd: proto * usd, parBurned: buybacks&.dig(d) || 0 }
         end
       }
+    end
+
+    # Every enabled chain at once, in USD: per-chain stats/daily converted with each chain's ref→USD rate.
+    def self.all_chains(range)
+      chains = Chains.enabled
+      per = chains.map { |c| q = new(c); [c, q.stats] }
+      last = chains.filter_map { |c| Trade.where(chain_id: c.id).maximum(:ts) }.max || Time.now.to_i
+      end_day = last - last % 86_400
+      dailies = chains.map { |c| new(c).daily(range, end_day:) }
+      days = dailies.first[:days].each_with_index.map do |d, i|
+        sum = ->(k) { dailies.sum { _1[:days][i][k] } }
+        d.merge(volumeUsd: sum.(:volumeUsd), trades: sum.(:trades), traders: sum.(:traders), launches: sum.(:launches),
+                creatorFeesUsd: sum.(:creatorFeesUsd), protocolFeesUsd: sum.(:protocolFeesUsd), parBurned: sum.(:parBurned))
+      end
+      usd = ->(k) { per.sum { |_, st| st[k].to_f * st[:refUsd].to_f } }
+      int = ->(k) { per.sum { |_, st| st[k].to_i } }
+      stats = {
+        refSymbol: "USD", refUsd: 1.0, volumeEth: usd.(:volumeEth), volume24hEth: usd.(:volume24hEth),
+        creatorEarnedEth: usd.(:creatorEarnedEth), protocolFeesEth: usd.(:protocolFeesEth),
+        launches: int.(:launches), launches24h: int.(:launches24h), launchesTraded: int.(:launchesTraded),
+        trades: int.(:trades), trades24h: int.(:trades24h), holders: int.(:holders), tokensWithHolders: int.(:tokensWithHolders),
+        par: per.map(&:last).filter_map { _1[:par] }.first,
+        feeModes: %w[creator holders burn floor].map do |m|
+          { mode: m, launches: per.sum { |_, st| st[:feeModes].find { _1[:mode] == m }[:launches] },
+            creatorFeesEth: per.sum { |_, st| st[:feeModes].find { _1[:mode] == m }[:creatorFeesEth] * st[:refUsd].to_f } }
+        end,
+        mirror: { since: nil, launches: per.sum { _2[:mirror][:launches] }, volumeEth: per.sum { |_, st| st[:mirror][:volumeEth] * st[:refUsd].to_f },
+                  creatorFeesEth: per.sum { |_, st| st[:mirror][:creatorFeesEth] * st[:refUsd].to_f },
+                  protocolFeesEth: per.sum { |_, st| st[:mirror][:protocolFeesEth] * st[:refUsd].to_f } }
+      }
+      [stats, dailies.first.merge(days:, refUsd: 1.0, refSymbol: "USD")]
     end
 
     def stats

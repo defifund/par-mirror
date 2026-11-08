@@ -5,12 +5,19 @@ module Par
     SORTS = {
       "createdAt" => ->(r) { r[:createdBlock] }, "new" => ->(r) { r[:createdBlock] },
       "lastTradeAt" => ->(r) { r[:lastTradeAt].to_i }, "tradeCount" => ->(r) { r[:tradeCount] },
-      "totalVolumeQuote" => ->(r) { r[:totalVolumeEth] }, "volume" => ->(r) { r[:totalVolumeEth] },
-      "marketCap" => ->(r) { r[:marketCapEth] }, "recentVolume" => ->(r) { r[:recentVolumeEth] },
+      # USD keys so rows of different chains (ETH, USDC, BNB references) sort together
+      "totalVolumeQuote" => ->(r) { r[:totalVolumeUsd] }, "volume" => ->(r) { r[:totalVolumeUsd] },
+      "marketCap" => ->(r) { r[:marketCapUsd] }, "recentVolume" => ->(r) { r[:recentVolumeUsd] },
       "holders" => ->(r) { r[:holders] }
     }.freeze
 
     def self.for(chain) = Rails.cache.fetch("par/rows/#{chain.id}", expires_in: 10.seconds) { new(chain).build }
+
+    # every enabled chain, or one chain when `slug` names it ("all"/blank = every chain)
+    def self.across(slug = nil)
+      chains = slug.blank? || slug == "all" ? Chains.enabled : [Chains.get(slug)]
+      chains.flat_map { self.for(_1) }
+    end
 
     def self.find(chain, token) = self.for(chain).find { _1[:token] == token.downcase }
 
@@ -71,13 +78,13 @@ module Par
           launchConfigId: l.launch_config_id, phantomQuote: m0[:phantomQuote], supply: l.supply.to_i.to_s,
           baseFeeBps: l.base_fee_bps, creatorTaxBps: l.creator_tax_bps, protocolFeeShareBps: l.protocol_fee_share_bps, protocolFeeRecipient: l.protocol_fee_recipient,
           quoteRaised: m0[:quoteRaised], tokensOnCurve: in_pools[l.token].to_i.to_s, totalVolumeQuote: m0[:totalVolumeQuote],
-          totalVolumeEth: m_rows.sum { _1[:_volEth] },
+          totalVolumeEth: m_rows.sum { _1[:_volEth] }, totalVolumeUsd: m_rows.sum { _1[:_volEth] } * usd,
           creatorFeesQuote: m0[:creatorFeesQuote], creatorFeesToken: m0[:creatorFeesToken],
           creatorFeesEth: creator_eth, creatorFeesUsd: creator_eth * usd, protocolFeesEth: m_rows.sum { _1[:_protocolEth] },
           burnedToken: l.burned.to_i.to_s, tradeCount: ms.sum(&:trade_count),
           lastPriceQuoteX18: m0[:lastPriceQuoteX18], lastPriceEth: price, lastPriceUsd: price * usd,
           marketCapEth: price * circ, marketCapUsd: price * circ * usd,
-          recentVolumeEth: recent[l.token].to_f, holders: holders[l.token].to_i,
+          recentVolumeEth: recent[l.token].to_f, recentVolumeUsd: recent[l.token].to_f * usd, holders: holders[l.token].to_i,
           createdAt: l.launched_at, createdBlock: l.launch_block, launchTx: l.launch_tx, viaMirror: l.via_mirror,
           lastTradeAt: ms.map { _1.last_trade_at.to_i }.max.then { _1&.positive? ? _1 : nil },
           positionId: m0[:positionId]

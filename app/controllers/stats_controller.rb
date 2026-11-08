@@ -1,8 +1,17 @@
 class StatsController < ApplicationController
   def show
-    @stats = Par::Queries.new(current_chain).stats
-    @daily = Par::Queries.new(current_chain).daily(params[:range].presence || "30d")
-    @buybacks = Par::Queries.new(current_chain).buybacks if current_chain.addr(:par) != Par::Chains::ZERO
-    @sync = SyncState.find_by(chain_id: current_chain.id)
+    @chain_tab = Par::Chains.enabled.map(&:slug).include?(params[:chain]) ? params[:chain] : "all"
+    range = params[:range].presence || "30d"
+    if @chain_tab == "all"
+      @stats, @daily = Par::Queries.all_chains(range)
+      @syncs = SyncState.where(chain_id: Par::Chains.enabled_ids)
+    else
+      chain = Par::Chains.get(@chain_tab)
+      q = Par::Queries.new(chain)
+      @stats = q.stats
+      @daily = q.daily(range)
+      @syncs = SyncState.where(chain_id: chain.id)
+    end
+    @buybacks = Par::Queries.new(Par::Chains.get(4663)).buybacks if @stats[:par] && Par::Chains.enabled_ids.include?(4663)
   end
 end
