@@ -32,7 +32,7 @@ env:
     RAILS_ENV: production
     APP_HOST: par.defi.club
     DB_HOST: par_mirror-db
-    PAR_CHAINS: "4663"
+    PAR_CHAINS: "4663,8453,5042"
     WEB_CONCURRENCY: 2
     JOB_CONCURRENCY: 1
     # PAR_RPC_URL_4663: https://...   # a private RPC makes syncing faster (default: public Robinhood RPC)

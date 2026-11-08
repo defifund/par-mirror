@@ -14,7 +14,7 @@ require "shellwords"
 require "fileutils"
 
 ROOT = File.expand_path("..", __dir__)
-TABLES = %w[launches markets trades balances fee_collections burns quote_assets block_timestamps sync_states].freeze
+TABLES = %w[launches markets trades balances fee_collections burns quote_assets block_timestamps distributions rewards floor_walls sync_states].freeze
 Dir.chdir(ROOT)
 
 def sh(cmd)
@@ -57,7 +57,7 @@ when "push"
     "docker exec #{db_container} pg_restore -U #{db_user} -d #{db_name} --data-only --no-owner --single-transaction #{remote}",
     "rm #{remote}"
   ].join(" && ").shellescape
-  sh "bin/kamal app exec --roles web 'bin/rails runner \"%w[launches markets trades balances fee_collections burns quote_assets block_timestamps sync_states].each { |t| ActiveRecord::Base.connection.reset_pk_sequence!(t) }\"'"
+  sh "bin/kamal app exec --roles web 'bin/rails runner \"%w[#{TABLES.join(" ")}].each { |t| ActiveRecord::Base.connection.reset_pk_sequence!(t) }\"'"
   sh "bin/kamal app start --roles job"
   puts "restored; the job role resumes syncing from the imported cursor"
 when "status"
