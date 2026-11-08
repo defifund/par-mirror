@@ -187,6 +187,7 @@ module Par
       stats = {
         refSymbol: "USD", refUsd: 1.0, volumeEth: usd.(:volumeEth), volume24hEth: usd.(:volume24hEth),
         creatorEarnedEth: usd.(:creatorEarnedEth), protocolFeesEth: usd.(:protocolFeesEth),
+        creatorFeesGenEth: usd.(:creatorFeesGenEth), protocolFeesGenEth: usd.(:protocolFeesGenEth),
         launches: int.(:launches), launches24h: int.(:launches24h), launchesTraded: int.(:launchesTraded),
         trades: int.(:trades), trades24h: int.(:trades24h), holders: int.(:holders), tokensWithHolders: int.(:tokensWithHolders),
         holderWallets: int.(:holderWallets), traderWallets: int.(:traderWallets), payoutsEth: usd.(:payoutsEth), payouts: int.(:payouts),
@@ -220,6 +221,10 @@ module Par
           trades: trades.count, trades24h: trades.where("ts > ?", t24).count,
           volumeEth: trades.sum(:value_eth), volume24hEth: trades.where("ts > ?", t24).sum(:value_eth),
           creatorEarnedEth: r.sum { _1[:creatorFeesEth] }, protocolFeesEth: r.sum { _1[:protocolFeesEth] },
+          # what trades generated (value × fee at trade time), the same measure as the daily series
+          **Trade.from("trades t").joins("JOIN launches l ON l.chain_id = t.chain_id AND l.token = t.token").where("t.chain_id = ?", @chain.id)
+                 .pick(Arel.sql("SUM(t.value_eth * l.pool_fee / 1e6)"), Arel.sql("SUM(t.value_eth * l.base_fee_bps / 1e4 * l.protocol_fee_share_bps / 1e4)"))
+                 .then { |total, proto| { creatorFeesGenEth: total.to_f - proto.to_f, protocolFeesGenEth: proto.to_f } },
           feeModes: %w[creator holders burn floor].map { |m| sel = r.select { _1[:feeMode] == m }; { mode: m, launches: sel.size, creatorFeesEth: sel.sum { _1[:creatorFeesEth] } } },
           par: par && { token: par[:token], priceEth: par[:lastPriceEth], burned: par[:burnedToken] },
           mirror: r.select { _1[:viaMirror] }.then do |m|
