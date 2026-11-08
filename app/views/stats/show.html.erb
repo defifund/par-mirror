@@ -16,7 +16,7 @@
     <% end %>
   </div>
   <button class="btn small" data-controller="copy" data-copy-text-value="<%= stats_text(s, d, @leaders, @chain_tab) %>" data-action="copy#copy">Copy as text</button>
-  <span class="small muted"><%= Time.at(d[:from]).utc.strftime("%b %-d") %> – <%= Time.at(d[:to]).utc.strftime("%b %-d, %Y") %><%= " (latest indexed day)" if @syncs.any?(&:backfilling) %></span>
+  <span class="small muted"><%= Time.at(d[:from]).utc.strftime("%b %-d") %> – <%= Time.at(d[:to]).utc.strftime("%b %-d, %Y") %><%= " (latest indexed day)" if @syncs.any?(&:backfilling) %> · updated <%= @computed_at && Time.now.to_i - @computed_at < 60 ? "just now" : "#{ago(@computed_at)} ago" %></span>
 </div>
 
 

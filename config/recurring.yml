@@ -5,6 +5,9 @@ shared: &shared
   refresh_quotes:
     class: RefreshQuotesJob
     schedule: every 10 minutes
+  warm_stats:
+    class: WarmStatsJob
+    schedule: every 4 minutes
 
 development:
   <<: *shared
