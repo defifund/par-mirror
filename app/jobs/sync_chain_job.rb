@@ -12,9 +12,12 @@ class SyncChainJob < ApplicationJob
     behind = false
     begin
       ix = Par::Indexer.new(Par::Chains.get(chain_id))
-      ix.run_until(Process.clock_gettime(Process::CLOCK_MONOTONIC) + 50)
+      start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      extras = Par::Extras.new(ix.chain, ix)
+      extras.run_until(start + 15) if extras.behind? # holder payouts + floor walls, never ahead of the main cursor
+      ix.run_until(start + 50)
       ix.fill_traders(limit: 400) unless ix.state.backfilling # resolve tx.from for trades the transfers could not attribute
-      behind = ix.state.cursor_block < ix.state.head_block.to_i
+      behind = ix.state.cursor_block < ix.state.head_block.to_i || extras.behind?
     rescue StandardError => e
       Rails.logger.error("[par #{chain_id}] sync error: #{e.class}: #{e.message}")
       sleep 5

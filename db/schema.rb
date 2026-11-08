@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_08_140723) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_09_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -43,6 +43,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_08_140723) do
     t.index ["chain_id", "token"], name: "index_burns_on_chain_id_and_token"
   end
 
+  create_table "distributions", force: :cascade do |t|
+    t.integer "chain_id", null: false
+    t.bigint "block_number", null: false
+    t.integer "log_index", null: false
+    t.string "tx_hash", null: false
+    t.bigint "ts"
+    t.string "token", null: false
+    t.string "asset", null: false
+    t.string "sender"
+    t.bigint "round", null: false
+    t.decimal "total", precision: 78, null: false
+    t.integer "recipients", null: false
+    t.integer "version", null: false
+    t.index ["chain_id", "block_number", "log_index"], name: "index_distributions_on_chain_id_and_block_number_and_log_index", unique: true
+    t.index ["chain_id", "token"], name: "index_distributions_on_chain_id_and_token"
+  end
+
   create_table "fee_collections", force: :cascade do |t|
     t.integer "chain_id", null: false
     t.bigint "block_number", null: false
@@ -59,6 +76,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_08_140723) do
     t.decimal "creator1", precision: 78, null: false
     t.index ["chain_id", "block_number", "log_index"], name: "idx_on_chain_id_block_number_log_index_db1340f292", unique: true
     t.index ["chain_id", "token"], name: "index_fee_collections_on_chain_id_and_token"
+  end
+
+  create_table "floor_walls", force: :cascade do |t|
+    t.integer "chain_id", null: false
+    t.bigint "block_number", null: false
+    t.integer "log_index", null: false
+    t.string "tx_hash", null: false
+    t.bigint "ts"
+    t.string "token", null: false
+    t.string "quote", null: false
+    t.integer "tick_lower", null: false
+    t.integer "tick_upper", null: false
+    t.decimal "liquidity", precision: 78, null: false
+    t.decimal "quote_in_wall", precision: 78, null: false
+    t.decimal "circulating", precision: 78, null: false
+    t.index ["chain_id", "block_number", "log_index"], name: "index_floor_walls_on_chain_id_and_block_number_and_log_index", unique: true
+    t.index ["chain_id", "token", "quote"], name: "index_floor_walls_on_chain_id_and_token_and_quote"
   end
 
   create_table "launches", force: :cascade do |t|
@@ -137,6 +171,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_08_140723) do
     t.index ["chain_id", "pair_token"], name: "index_quote_assets_on_chain_id_and_pair_token", unique: true
   end
 
+  create_table "rewards", force: :cascade do |t|
+    t.integer "chain_id", null: false
+    t.bigint "block_number", null: false
+    t.integer "log_index", null: false
+    t.string "tx_hash", null: false
+    t.bigint "ts"
+    t.string "token", null: false
+    t.string "asset", null: false
+    t.string "owner", null: false
+    t.decimal "amount", precision: 78, null: false
+    t.index ["chain_id", "block_number", "log_index"], name: "index_rewards_on_chain_id_and_block_number_and_log_index", unique: true
+    t.index ["chain_id", "owner"], name: "index_rewards_on_chain_id_and_owner"
+    t.index ["chain_id", "token"], name: "index_rewards_on_chain_id_and_token"
+  end
+
   create_table "sync_states", force: :cascade do |t|
     t.integer "chain_id", null: false
     t.bigint "cursor_block", null: false
@@ -147,6 +196,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_08_140723) do
     t.datetime "quotes_refreshed_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "extras_cursor"
     t.index ["chain_id"], name: "index_sync_states_on_chain_id", unique: true
   end
 

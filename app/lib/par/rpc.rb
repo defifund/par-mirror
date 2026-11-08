@@ -124,7 +124,11 @@ module Par
         rescue => e
           errors << e
         end
-      end.each(&:join)
+      end.then do |pool|
+        # let the workers' executor.wrap through while this thread waits: in development a pending
+        # code reload would otherwise deadlock (the reloader waits for us, the workers for the reloader)
+        ActiveSupport::Dependencies.interlock.permit_concurrent_loads { pool.each(&:join) }
+      end
       raise errors.first if errors.any?
       out
     end

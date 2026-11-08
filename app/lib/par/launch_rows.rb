@@ -57,6 +57,7 @@ module Par
       holders = holders_count
       in_pools = Balance.where(chain_id: c.id, owner: c.addr(:pool_manager)).pluck(:token, :balance).to_h
       markets = Market.where(chain_id: c.id).order(:token, :idx).group_by(&:token)
+      floors = Payouts.new(c).floor_by_token
       Launch.where(chain_id: c.id).map do |l|
         ms = markets[l.token] || []
         m_rows = ms.map { market_row(_1) }
@@ -70,7 +71,7 @@ module Par
           chainId: c.id, chain: c.slug, launchpad: "par", factory: l.factory, locker: l.locker, kind: l.kind,
           marketCount: ms.size, markets: ms.size > 1 ? m_rows.map { |r| r.reject { |k, _| k.start_with?("_") } } : nil,
           token: l.token, poolId: m0[:poolId], poolFee: l.pool_fee, tickSpacing: l.tick_spacing,
-          feesToHolders: mode == "holders", feesBurned: mode == "burn", feesFloor: mode == "floor", feeMode: mode,
+          feesToHolders: mode == "holders", feesBurned: mode == "burn", feesFloor: mode == "floor", feeMode: mode, floor: mode == "floor" ? (floors[l.token] || []) : nil,
           deployer: l.deployer, creatorFeeRecipient: l.creator_fee_recipient,
           name: l.name, symbol: l.symbol, decimals: l.decimals, logo: l.logo.presence, logoUrl: l.logo_url, description: l.description.presence,
           socials: %w[twitter telegram discord website farcaster].to_h { [_1.to_sym, s[_1].presence] },

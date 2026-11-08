@@ -27,3 +27,14 @@ module Par
     LAUNCH_CONFIG = "(uint256,uint256,int24,bool)".freeze
   end
 end
+
+module Par
+  module Events
+    # holder rewards (PairPadDisperseV2: ETH + ERC-20, launch-tagged; v1: token only, amounts via the tx's Transfer logs)
+    DISPERSED    = E["Dispersed(address indexed launch, address indexed asset, address indexed sender, uint256 round, uint256 total, uint256 recipients)"]
+    PAID         = E["Paid(address indexed launch, address indexed asset, address indexed to, uint256 amount)"]
+    DISPERSED_V1 = E["Dispersed(address indexed token, address indexed sender, uint256 indexed round, uint256 total, uint256 recipients)"]
+    # floor launches: the vault re-places the locked bid wall
+    WALL_MOVED   = E["WallMoved(address indexed token, address indexed quote, int24 tickLower, int24 tickUpper, uint128 liquidity, uint256 quoteInWall, uint256 circulating)"]
+  end
+end

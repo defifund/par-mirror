@@ -49,9 +49,40 @@ module Api
       render json: Par::Queries.new(@chain).claimable(params[:owner].downcase)
     end
 
+    # burn-vault rounds of a "burn" launch (par-sdk FeeBurns)
     def burns
-      render json: Burn.where(chain_id: @chain.id, token: params[:token].to_s.downcase).order(block_number: :desc).limit(500)
-                       .map { { txHash: _1.tx_hash, timestamp: _1.ts, from: _1.from_addr, amount: _1.amount.to_i.to_s } }
+      token = params[:token].to_s.downcase
+      vault = @chain.addr(:burn_vault)
+      scope = Burn.where(chain_id: @chain.id, token:, from_addr: vault)
+      limit = (params[:limit].presence || 200).to_i.clamp(1, 1000)
+      render json: { token:, vault:, burns: scope.count, lastAt: scope.maximum(:ts), total: scope.sum(:amount).to_i.to_s,
+                     items: scope.order(block_number: :desc, log_index: :desc).limit(limit)
+                                 .map { { id: "#{_1.tx_hash}-#{_1.log_index}", amount: _1.amount.to_i.to_s, txHash: _1.tx_hash, timestamp: _1.ts } } }
+    end
+
+    def distributions
+      return bad("token required") unless addr?(params[:token])
+      render json: payouts.distributions(params[:token], limit: (params[:limit].presence || 200).to_i)
+    end
+
+    def rewards
+      return bad("owner required") unless addr?(params[:owner])
+      return bad("bad token") if params[:token].present? && !addr?(params[:token])
+      render json: payouts.rewards(params[:owner], token: params[:token].presence, limit: (params[:limit].presence || 500).to_i)
+    end
+
+    def floor
+      r = Par::LaunchRows.find(@chain, params[:token].to_s)
+      return render(json: { error: "not a par token" }, status: :not_found) unless r
+      render json: payouts.floor(r, quote: params[:quote].presence)
+    end
+
+    # short id from the token's website metadata (/t/<first 8 bytes of the launch salt>) -> token
+    def resolve
+      id = params[:id].to_s.downcase.delete_prefix("0x")
+      return bad("id must be 16 hex") unless id.match?(/\A\h{16}\z/)
+      token = Par::ShortIds.resolve(id, chain_ids: [@chain.id])&.last
+      token ? render(json: { token:, chainId: @chain.id }) : render(json: { error: "unknown id" }, status: :not_found)
     end
 
     def buybacks
@@ -67,6 +98,10 @@ module Api
     end
 
     private
+
+    def payouts = Par::Payouts.new(@chain)
+    def addr?(v) = v.to_s.match?(/\A0x\h{40}\z/)
+    def bad(msg) = render(json: { error: msg }, status: :bad_request)
 
     def rows = Par::LaunchRows.for(@chain)
 
