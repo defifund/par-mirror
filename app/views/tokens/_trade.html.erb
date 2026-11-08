@@ -1,0 +1,21 @@
+<% ref = current_chain.reference[:symbol] %>
+<div class="card trade" data-controller="trade" data-trade-chain-value="<%= chain_payload %>" data-trade-token-value="<%= r[:token] %>" data-trade-symbol-value="<%= r[:symbol] %>">
+  <div class="tabs full">
+    <button class="active buy" data-action="trade#side" data-side="buy" data-trade-target="sideButton">Buy</button>
+    <button data-action="trade#side" data-side="sell" data-trade-target="sideButton">Sell</button>
+  </div>
+  <label class="small muted">You pay (<span data-trade-target="payUnit"><%= ref %></span>)
+    <span class="link" data-action="click->trade#max" data-trade-target="balance"></span>
+  </label>
+  <input class="input big" inputmode="decimal" placeholder="0.0" data-trade-target="amount" data-action="input->trade#quote">
+  <div class="row gap small" data-trade-target="presets">
+    <% %w[0.001 0.01 0.05 0.1].each do |v| %><button class="chip" data-action="trade#preset" data-value="<%= v %>"><%= v %></button><% end %>
+  </div>
+  <div class="quote"><span class="muted small">You receive (est.)</span><b data-trade-target="out">—</b></div>
+  <div class="row gap small muted">Slippage
+    <% [100, 300, 1000].each do |s| %><button class="chip <%= 'on' if s == 300 %>" data-action="trade#slippage" data-bps="<%= s %>"><%= s / 100 %>%</button><% end %>
+  </div>
+  <button class="btn wide primary" data-trade-target="submit" data-action="trade#submit" disabled>Buy <%= r[:symbol] %></button>
+  <div class="msg" data-trade-target="msg" hidden></div>
+  <p class="small muted">Routed through par's <%= "multi-market " if r[:kind] == "multi" %>router; for pools quoted in another asset the router walks the on-chain pricer's <%= ref %> route. Pool fee <%= r[:poolFee] / 10_000.0 %>%.</p>
+</div>

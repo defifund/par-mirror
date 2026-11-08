@@ -1,0 +1,63 @@
+<% content_for :title, "Create a token"; a = current_chain; ref = a.reference[:symbol] %>
+<div class="narrow" data-controller="create" data-create-chain-value="<%= chain_payload %>" data-create-modes-value="<%= Par::FeeModes.launchable_keys.to_json %>">
+  <h1>Create a token</h1>
+  <div class="msg err" data-create-target="status" hidden></div>
+  <p class="muted">Fixed supply of 1,000,000,000, all of it in a Uniswap v4 pool locked forever and tradable everywhere from the first block. Every token opens at the same market cap, <span data-create-target="startMcap">…</span>.</p>
+
+  <section class="card stack">
+    <h3>01 · Your token</h3>
+    <div class="form">
+      <label><span class="lbl">Token name</span><input class="input" maxlength="32" data-create-target="name"></label>
+      <label><span class="lbl">Ticker</span><input class="input" maxlength="12" data-create-target="symbol"></label>
+      <label><span class="lbl">Image URI <span class="hint">ipfs:// or https://</span></span><input class="input" placeholder="ipfs://…" data-create-target="logo"></label>
+      <% if @upload %>
+        <label><span class="lbl">…or upload <span class="hint">PNG · JPG · GIF · WebP, ≤ 4 MB</span></span><input type="file" accept="image/png,image/jpeg,image/gif,image/webp" data-action="change->create#upload"></label>
+      <% end %>
+      <label class="span2"><span class="lbl">Description <span class="hint">optional</span></span><textarea class="input" rows="3" data-create-target="description"></textarea></label>
+      <% %w[website twitter telegram discord farcaster].each do |k| %>
+        <label><span class="lbl"><%= k == "twitter" ? "X / Twitter" : k.capitalize %> <span class="hint">optional, full URL</span></span><input class="input" placeholder="https://" data-create-target="social" data-key="<%= k %>"></label>
+      <% end %>
+    </div>
+  </section>
+
+  <section class="card stack">
+    <h3>02 · Pick a pair</h3>
+    <p class="small muted">Same starting market cap whichever you choose. Two to five pairs make a multi-market token, one pool per asset.</p>
+    <div class="row gap wrap">
+      <button class="chip on" data-action="create#togglePreset" data-address="<%= Par::Chains::ZERO %>" data-symbol="<%= ref %>" data-decimals="18"><%= ref %></button>
+      <button class="chip" data-action="create#togglePreset" data-address="<%= a.addr(:usdg) %>" data-symbol="USDG" data-decimals="6">USDG</button>
+      <% if a.addr(:par) != Par::Chains::ZERO %><button class="chip" data-action="create#togglePreset" data-address="<%= a.addr(:par) %>" data-symbol="par" data-decimals="18">par</button><% end %>
+    </div>
+    <div class="row gap">
+      <input class="input grow" placeholder="Any token address on the chain" data-create-target="custom">
+      <button class="btn" data-action="create#addCustom">Add</button>
+    </div>
+    <div class="small row gap wrap"><span class="muted">Markets</span><span data-create-target="pairs"></span></div>
+  </section>
+
+  <section class="card stack">
+    <h3>03 · Fees</h3>
+    <div class="radio">
+      <% Par::FeeModes.all.each do |m| %>
+        <label class="opt <%= 'on' if m.key == 'creator' %> <%= 'disabled' unless m.launchable %>" title="<%= m.launch_note %>">
+          <input type="radio" name="mode" value="<%= m.key %>" <%= "checked" if m.key == "creator" %> <%= "disabled" unless m.launchable %> data-action="create#mode">
+          <b><%= m.title %><%= " · unavailable" unless m.launchable %></b>
+          <span class="small muted"><%= m.launchable ? m.blurb : m.launch_note %></span>
+        </label>
+      <% end %>
+    </div>
+    <label><span class="lbl">Creator tax <b data-create-target="taxLabel">0.0%</b></span>
+      <input type="range" min="0" max="1000" step="50" value="0" data-create-target="tax" data-action="input->create#tax">
+    </label>
+    <p class="small muted" data-create-target="feeLine">…</p>
+  </section>
+
+  <section class="card stack">
+    <h3>04 · Launch</h3>
+    <label><span class="lbl">Opening buy in <%= ref %> <span class="hint">optional; lands in the launch transaction so nobody can get in front of it</span></span><input class="input" inputmode="decimal" placeholder="0" data-create-target="devBuy">
+    </label>
+    <p class="small muted">Launch fee: <span data-create-target="launchFee">…</span> <%= ref %>. Your wallet signs one transaction to the router; the metadata is written on-chain and cannot be changed later.</p>
+    <button class="btn primary wide" data-action="create#launch" data-create-target="submit">Launch</button>
+    <div class="msg" data-create-target="msg" hidden></div>
+  </section>
+</div>

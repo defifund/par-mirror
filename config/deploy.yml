@@ -1,0 +1,70 @@
+# Kamal deploy for the par community mirror, on the shared Tokyo host (same conventions as ~/Work/defiio:
+# local registry on localhost:5000, local docker builder, `deploy` user, one kamal-proxy for every app).
+service: par_mirror
+image: par_mirror
+deploy_timeout: 320
+
+servers:
+  web:
+    - deploy.tokyo
+  job:
+    hosts:
+      - deploy.tokyo
+    cmd: bin/jobs           # Solid Queue: chain sync, trader backfill, quote refresh
+
+proxy:
+  ssl: true
+  host: par.defi.club
+  healthcheck:
+    timeout: 300            # first boot runs db:prepare
+
+registry:
+  server: localhost:5000    # the kamal-docker-registry container on the build machine, shared with defiio
+  username: dummy
+  password: dummy
+
+env:
+  secret:
+    - RAILS_MASTER_KEY
+    - POSTGRES_PASSWORD
+    - PINATA_JWT            # optional: enables token image upload on /launch (leave empty to disable)
+  clear:
+    RAILS_ENV: production
+    APP_HOST: par.defi.club
+    DB_HOST: par_mirror-db
+    PAR_CHAINS: "4663"
+    WEB_CONCURRENCY: 2
+    JOB_CONCURRENCY: 1
+    # PAR_RPC_URL_4663: https://...   # a private RPC makes syncing faster (default: public Robinhood RPC)
+    # PAR_RPS_4663: "12"              # request rate ceiling against the RPC
+
+aliases:
+  console: app exec --interactive --reuse "bin/rails console"
+  shell: app exec --interactive --reuse "bash"
+  logs: app logs -f
+  dbc: app exec --interactive --reuse "bin/rails dbconsole --include-password"
+  sync: app exec --reuse --roles web "bin/rails runner 'p SyncState.all.map { [_1.chain_id, _1.cursor_block, _1.head_block, _1.progress.round(2), _1.last_error] }'"
+
+asset_path: /rails/public/assets
+
+builder:
+  arch: amd64
+  driver: docker
+  local: true
+
+ssh:
+  user: deploy
+
+accessories:
+  db:
+    image: postgres:17
+    host: deploy.tokyo
+    port: "127.0.0.1:5437:5432"   # 5434–5436 are smarts, miles, defiio
+    env:
+      clear:
+        POSTGRES_USER: par_mirror
+        POSTGRES_DB: par_mirror_production
+      secret:
+        - POSTGRES_PASSWORD
+    volumes:
+      - /home/deploy/par_mirror_postgres_data:/var/lib/postgresql/data

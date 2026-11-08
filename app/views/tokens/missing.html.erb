@@ -1,0 +1,6 @@
+<div class="card">
+  <h2>Token not found</h2>
+  <p class="muted"><code><%= params[:token] %></code> is not a par token on <%= current_chain.name %>, or the indexer has not reached its launch block yet
+  <% if (s = SyncState.find_by(chain_id: current_chain.id))&.backfilling %>(history replayed: <%= s.progress.round(1) %>%)<% end %>.</p>
+  <%= link_to "← Explore", root_path, class: "btn" %>
+</div>

@@ -1,0 +1,25 @@
+Rails.application.routes.draw do
+  get "up" => "rails/health#show", as: :rails_health_check
+
+  root "explore#index"
+  get "token/:chain/:token", to: "tokens#show", as: :token, constraints: { token: /0x\h{40}/ }
+  get "token/:token", to: "tokens#show", constraints: { token: /0x\h{40}/ }
+  get "t/:token", to: "tokens#show", constraints: { token: /0x\h{40}/ }
+  get "launch", to: "launches#new", as: :new_launch
+  get "portfolio", to: "portfolios#show", as: :portfolio
+  get "stats", to: "stats#show", as: :stats
+  get "docs", to: "pages#docs", as: :docs
+  get "api/config", to: "pages#config_json"
+  get "tokenlist.json", to: "api/indexer#tokenlist"
+  post "api/upload", to: "uploads#create"
+
+  # API compatible with the original public indexer (api.par.family / par.family/idx/<chainId>)
+  scope "idx/:chain", controller: "api/indexer", defaults: { format: :json } do
+    get "health"
+    get "launches/count", action: :count
+    get "launches/:token", action: :launch, constraints: { token: /0x\h{40}/ }
+    get "launches"
+    %w[trades candles holders positions fees claimable burns buybacks stats].each { get _1 }
+    get "tokenlist.json", action: :tokenlist
+  end
+end

@@ -1,0 +1,2 @@
+class FeeCollection < ApplicationRecord
+end

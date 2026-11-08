@@ -1,0 +1,2 @@
+class QuoteAsset < ApplicationRecord
+end

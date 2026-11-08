@@ -1,0 +1,60 @@
+<% content_for :title, "Explore" %>
+<section class="hero">
+  <h1>Explore</h1>
+  <p class="muted">Every token launched on par on <%= current_chain.name %>. Fixed supply, the whole supply in a Uniswap v4 pool locked forever.</p>
+  <div class="row gap wrap">
+    <%= link_to "+ Create", new_launch_path, class: "btn primary" %>
+    <% if @sync %>
+      <span class="pill <%= @sync.backfilling ? 'warn' : 'ok' %>" title="<%= @sync.last_error %>">
+        <%= current_chain.slug.upcase %> ·
+        <% if @sync.backfilling %>syncing history (<%= @sync.progress.round(1) %>%), numbers are partial<% else %>live<% end %>
+      </span>
+    <% end %>
+  </div>
+</section>
+
+<%= turbo_frame_tag "explore", data: { turbo_action: "advance" } do %>
+  <div class="toolbar">
+    <div class="tabs">
+      <% { "trending" => "Trending", "mcap" => "Market cap", "new" => "New", "volume" => "Volume", "active" => "Last trade" }.each do |k, label| %>
+        <%= link_to label, root_path(tab: k, q: params[:q].presence), class: ("active" if @tab == k) %>
+      <% end %>
+    </div>
+    <%= form_with url: root_path, method: :get, class: "search-form", data: { controller: "autosubmit", turbo_frame: "explore" } do |f| %>
+      <%= hidden_field_tag :tab, @tab %>
+      <%= search_field_tag :q, params[:q], placeholder: "Search name, ticker or address", class: "search", data: { action: "input->autosubmit#submit" }, autocomplete: "off" %>
+    <% end %>
+  </div>
+
+  <% if @rows.empty? %>
+    <div class="muted pad">No tokens<%= params[:q].present? ? " match" : " indexed yet" %>.</div>
+  <% else %>
+    <div class="grid">
+      <% @rows.each do |r| %>
+        <%= link_to token_path(chain: r[:chain], token: r[:token]), class: "card token-card", data: { turbo_frame: "_top" } do %>
+          <div class="row gap">
+            <%= token_logo(r) %>
+            <div class="grow ellipsis">
+              <div class="ellipsis"><b><%= r[:name] %></b> <span class="muted">$<%= r[:symbol] %></span></div>
+              <div class="small muted">
+                <%= r[:marketCount] > 1 ? "#{r[:marketCount]} markets" : "vs #{r[:quoteSymbol]}" %> · <%= ago(r[:createdAt]) %> old
+                <%= fee_mode_tag(r[:feeMode]) %>
+              </div>
+            </div>
+          </div>
+          <div class="kv">
+            <div><span class="muted small">MCap</span><b><%= usd(r[:marketCapUsd]) %></b></div>
+            <div><span class="muted small">24h vol</span><b><%= compact(r[:recentVolumeEth]) %> <%= current_chain.reference[:symbol] %></b></div>
+            <div><span class="muted small">Price</span><b><% if r[:lastPriceUsd].to_f.positive? %>$<%= price(r[:lastPriceUsd]) %><% else %>—<% end %></b></div>
+            <div><span class="muted small">Holders</span><b><%= compact(r[:holders], 1) %></b></div>
+          </div>
+        <% end %>
+      <% end %>
+    </div>
+    <div class="row gap center pad">
+      <%= link_to "← Prev", root_path(tab: @tab, q: params[:q].presence, page: @page - 1), class: "btn #{'disabled' if @page.zero?}" %>
+      <span class="muted"><%= @page * ExploreController::PER_PAGE + 1 %>–<%= [@total, (@page + 1) * ExploreController::PER_PAGE].min %> of <%= @total %></span>
+      <%= link_to "Next →", root_path(tab: @tab, q: params[:q].presence, page: @page + 1), class: "btn #{'disabled' if (@page + 1) * ExploreController::PER_PAGE >= @total}" %>
+    </div>
+  <% end %>
+<% end %>

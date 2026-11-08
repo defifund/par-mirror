@@ -1,0 +1,15 @@
+<%# locals: title, sub, total, days, series ([{key:, label:}]), format ("usd" | "count") %>
+<div class="card chart-card" data-controller="columns" data-title="<%= title %>"
+     data-columns-days-value="<%= days.map { |d| d.slice(:day, *series.map { _1[:key] }) }.to_json %>"
+     data-columns-series-value="<%= series.to_json %>" data-columns-format-value="<%= format %>">
+  <div class="chart-head">
+    <div>
+      <h3><%= title %></h3>
+      <p class="sub"><%= sub %></p>
+    </div>
+    <div class="big"><%= total %></div>
+  </div>
+  <div class="legend" data-columns-target="legend"></div>
+  <div class="cols-plot" data-columns-target="plot"><div class="cols-tip" data-columns-target="tip" hidden></div></div>
+  <details class="table-toggle"><summary>Show as table</summary><div data-columns-target="table"></div></details>
+</div>

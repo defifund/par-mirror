@@ -1,0 +1,108 @@
+<% r = @row; ref = current_chain.reference[:symbol]; content_for :title, "#{r[:name]} ($#{r[:symbol]})" %>
+<div class="token-head">
+  <%= token_logo(r, size: 64) %>
+  <div class="grow">
+    <h1><%= r[:name] %> <span class="muted">$<%= r[:symbol] %></span></h1>
+    <div class="row gap small muted wrap">
+      <span class="mono" data-controller="copy" data-copy-text-value="<%= r[:token] %>" data-action="click->copy#copy" title="copy address"><%= short(r[:token]) %> ⧉</span>
+      <%= explorer(current_chain, "token", r[:token], "explorer") %>
+      <% r[:socials].each do |k, u| %><% if safe_url(u) %><%= link_to({ twitter: "X" }[k] || k.to_s.capitalize, u, target: "_blank", rel: "noopener nofollow") %><% end %><% end %>
+      <span>by <%= explorer(current_chain, "address", r[:deployer]) %> · <%= ago(r[:createdAt]) %> ago</span>
+      <%= fee_mode_tag(r[:feeMode]) %>
+    </div>
+    <% if r[:description] %><p class="desc"><%= r[:description] %></p><% end %>
+  </div>
+</div>
+
+<% if (mode = Par::FeeModes[r[:feeMode]])&.token_note %>
+  <div class="msg <%= mode.severity %> risk"><b>Fee mode notice.</b> <%= mode.token_note %></div>
+<% end %>
+
+<div class="stats-row">
+  <div><span class="muted small">Price</span><b><% if @ref_usd.positive? %>$<%= price(r[:lastPriceUsd]) %><% else %><%= price(r[:lastPriceEth]) %> <%= ref %><% end %></b></div>
+  <div><span class="muted small">Market cap</span><b><%= @ref_usd.positive? ? usd(r[:marketCapUsd]) : "#{compact(r[:marketCapEth])} #{ref}" %></b></div>
+  <div><span class="muted small">24h volume</span><b><%= compact(r[:recentVolumeEth]) %> <%= ref %></b></div>
+  <div><span class="muted small">Total volume</span><b><%= compact(r[:totalVolumeEth]) %> <%= ref %></b></div>
+  <div><span class="muted small">Trades</span><b><%= compact(r[:tradeCount], 1) %></b></div>
+  <div><span class="muted small">Holders</span><b><%= compact(r[:holders], 1) %></b></div>
+  <div><span class="muted small">Burned</span><b><%= compact(units(r[:burnedToken])) %></b></div>
+</div>
+
+<div class="two-col">
+  <div class="col-main">
+    <div class="card" data-controller="chart" data-chart-url-value="/idx/<%= current_chain.id %>/candles?token=<%= r[:token] %>" data-chart-usd-value="<%= @ref_usd %>" data-chart-ref-value="<%= ref %>">
+      <div class="row gap between">
+        <div class="tabs small" data-chart-target="intervals">
+          <% %w[1m 5m 15m 1h 4h 1d].each do |i| %><button data-action="chart#interval" data-interval="<%= i %>" class="<%= 'active' if i == '15m' %>"><%= i %></button><% end %>
+        </div>
+        <div class="tabs small" data-chart-target="units">
+          <% if @ref_usd.positive? %><button class="active" data-action="chart#unit" data-unit="usd">USD</button><% end %>
+          <button class="<%= 'active' unless @ref_usd.positive? %>" data-action="chart#unit" data-unit="ref"><%= ref %></button>
+        </div>
+      </div>
+      <div class="chart" data-chart-target="canvas"></div>
+      <div class="muted small" data-chart-target="empty" hidden>No trades indexed in this window yet.</div>
+    </div>
+
+    <div class="card" data-controller="tabs">
+      <div class="tabs">
+        <button class="active" data-action="tabs#show" data-tab="trades">Trades</button>
+        <button data-action="tabs#show" data-tab="holders">Holders (<%= @holders[:holders] %>)</button>
+        <button data-action="tabs#show" data-tab="info">Info</button>
+      </div>
+      <div data-tabs-target="panel" data-tab="trades" class="scroll">
+        <table class="table small">
+          <thead><tr><th>Age</th><th>Side</th><th><%= ref %></th><th><%= r[:symbol] %></th><th>Price</th><th>Trader</th></tr></thead>
+          <tbody>
+            <% @trades.each do |t| %>
+              <tr>
+                <td><%= explorer(current_chain, "tx", t[:txHash], ago(t[:timestamp])) %></td>
+                <td class="<%= t[:isBuy] ? 'up' : 'down' %>"><%= t[:isBuy] ? "Buy" : "Sell" %><%= " · #{t[:quoteSymbol]}" if t[:market] %></td>
+                <td><%= compact(t[:valueEth]) %></td>
+                <td><%= compact(units(t[:tokenAmount])) %></td>
+                <td><% if @ref_usd.positive? %>$<%= price(t[:priceEth].to_f * @ref_usd) %><% else %><%= price(t[:priceEth]) %><% end %></td>
+                <td class="mono"><%= t[:trader] ? explorer(current_chain, "address", t[:trader]) : "…" %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+        <% if @trades.empty? %><div class="muted small pad">No trades indexed yet.</div><% end %>
+      </div>
+      <div data-tabs-target="panel" data-tab="holders" class="scroll" hidden>
+        <p class="small muted"><%= @holders[:holders] %> holders · <%= compact(units(@holders[:inPools])) %> <%= r[:symbol] %> still in the pool<%= "s" if r[:marketCount] > 1 %></p>
+        <% labels = current_chain.addresses.to_h { |k, a| [a.downcase, k.to_s] } %>
+        <table class="table small">
+          <thead><tr><th>#</th><th>Holder</th><th>Balance</th><th>Share</th></tr></thead>
+          <tbody>
+            <% @holders[:items].each_with_index do |h, i| %>
+              <tr>
+                <td><%= i + 1 %></td>
+                <td class="mono"><%= explorer(current_chain, "address", h[:owner]) %>
+                  <% if h[:owner] == r[:deployer] %><span class="tag">creator</span><% end %>
+                  <% if labels[h[:owner]] %><span class="tag"><%= labels[h[:owner]].humanize.downcase %></span><% end %></td>
+                <td><%= compact(units(h[:balance])) %></td>
+                <td><%= number_to_percentage(h[:share] * 100, precision: 2) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+      <div data-tabs-target="panel" data-tab="info" hidden>
+        <table class="table small"><tbody>
+          <tr><td class="muted">Kind</td><td><%= r[:kind] == "multi" ? "multi-market (#{r[:marketCount]})" : "single market" %></td></tr>
+          <% (r[:markets] || [r]).each_with_index do |m, i| %>
+            <tr><td class="muted">Market <%= i %></td><td>vs <%= m[:quoteSymbol] %> <span class="tag"><%= m[:quoteRisk] %></span> · pool <span class="mono"><%= short(m[:poolId]) %></span> · position #<%= m[:positionId] %></td></tr>
+          <% end %>
+          <tr><td class="muted">Supply</td><td><%= compact(units(r[:supply])) %></td></tr>
+          <tr><td class="muted">Launch tx</td><td><%= explorer(current_chain, "tx", r[:launchTx]) %> (block <%= r[:createdBlock] %>)</td></tr>
+          <tr><td class="muted">Factory</td><td class="mono"><%= r[:factory] %></td></tr>
+        </tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-side">
+    <%= render "tokens/trade", r: %>
+    <%= render "tokens/fees", r: %>
+  </div>
+</div>

@@ -1,0 +1,14 @@
+{
+  "name": "app",
+  "private": true,
+  "scripts": {
+    "build": "bun bun.config.js"
+  },
+  "dependencies": {
+    "@hotwired/stimulus": "^3.2.2",
+    "@hotwired/turbo-rails": "^8.0.23",
+    "lightweight-charts": "4.2.3",
+    "par-sdk": "file:./vendor/par-sdk",
+    "viem": "2"
+  }
+}

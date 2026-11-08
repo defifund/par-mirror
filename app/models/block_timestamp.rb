@@ -1,0 +1,2 @@
+class BlockTimestamp < ApplicationRecord
+end

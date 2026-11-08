@@ -1,0 +1,67 @@
+#!/usr/bin/env ruby
+# Move the indexed chain data between databases, so a server starts from where a local sync stopped
+# instead of replaying par's history again.
+#
+#   bin/par-data export [FILE]          dump the par tables of the local DB (default tmp/par_chain.dump)
+#   bin/par-data push [FILE]            copy FILE to the Kamal db host and restore it into production
+#                                       (stops the job role first, starts it again afterwards)
+#   bin/par-data status                 local sync position
+#
+# The dump is a consistent snapshot: data and the sync cursor are committed together, so the restored
+# server resumes exactly at the cursor. Only chain data is moved; queue/cache databases are not.
+require "yaml"
+require "shellwords"
+require "fileutils"
+
+ROOT = File.expand_path("..", __dir__)
+TABLES = %w[launches markets trades balances fee_collections burns quote_assets block_timestamps sync_states].freeze
+Dir.chdir(ROOT)
+
+def sh(cmd)
+  puts "$ #{cmd}"
+  system(cmd) or abort("failed: #{cmd}")
+end
+
+def local_db = ENV.fetch("PAR_LOCAL_DB", "par_mirror_development")
+
+def deploy
+  @deploy ||= YAML.safe_load(File.read("config/deploy.yml"), aliases: true)
+end
+
+def db_host
+  deploy.dig("accessories", "db", "host") or abort("accessories.db.host missing in config/deploy.yml")
+end
+
+def ssh_user = deploy.dig("ssh", "user") || "root"
+def db_container = "#{deploy.fetch('service')}-db"
+def db_user = deploy.dig("accessories", "db", "env", "clear", "POSTGRES_USER") || "par_mirror"
+def db_name = deploy.dig("accessories", "db", "env", "clear", "POSTGRES_DB") || "par_mirror_production"
+
+case ARGV[0]
+when "export"
+  file = ARGV[1] || "tmp/par_chain.dump"
+  FileUtils.mkdir_p(File.dirname(file))
+  sh "pg_dump -Fc --data-only --no-owner #{TABLES.map { "-t #{_1}" }.join(' ')} -f #{file.shellescape} #{local_db}"
+  puts "wrote #{file} (#{(File.size(file) / 1e6).round(1)} MB)"
+when "push"
+  file = ARGV[1] || "tmp/par_chain.dump"
+  abort "no dump at #{file}; run bin/par-data export first" unless File.exist?(file)
+  target = "#{ssh_user}@#{db_host}"
+  remote = "/tmp/par_chain.dump"
+  sh "bin/kamal app stop --roles job"
+  sh "scp #{file.shellescape} #{target}:#{remote}"
+  truncate = "TRUNCATE #{TABLES.join(', ')} RESTART IDENTITY CASCADE"
+  sh "ssh #{target} " + [
+    "docker cp #{remote} #{db_container}:#{remote}",
+    %(docker exec #{db_container} psql -U #{db_user} -d #{db_name} -v ON_ERROR_STOP=1 -c "#{truncate}"),
+    "docker exec #{db_container} pg_restore -U #{db_user} -d #{db_name} --data-only --no-owner --single-transaction #{remote}",
+    "rm #{remote}"
+  ].join(" && ").shellescape
+  sh "bin/kamal app exec --roles web 'bin/rails runner \"%w[launches markets trades balances fee_collections burns quote_assets block_timestamps sync_states].each { |t| ActiveRecord::Base.connection.reset_pk_sequence!(t) }\"'"
+  sh "bin/kamal app start --roles job"
+  puts "restored; the job role resumes syncing from the imported cursor"
+when "status"
+  sh %(psql -d #{local_db} -c "SELECT chain_id, cursor_block, head_block, backfilling, last_error FROM sync_states")
+else
+  puts File.read(__FILE__).lines.grep(/^#( |$)/).map { _1.sub(/^# ?/, "") }.join
+end
