@@ -13,6 +13,8 @@ Rails.application.routes.draw do
   get "api/config", to: "pages#config_json"
   get "tokenlist.json", to: "api/indexer#tokenlist"
   post "api/upload", to: "uploads#create"
+  get "api/stocks", to: "api/create_helpers#stocks"
+  get "api/tokens", to: "api/create_helpers#tokens"
 
   # API compatible with the original public indexer (api.par.family / par.family/idx/<chainId>)
   get "idx/:chain/events", to: "api/events#index"

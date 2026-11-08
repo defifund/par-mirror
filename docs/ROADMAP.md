@@ -27,7 +27,7 @@ Status legend: [x] done · [~] in progress · [ ] to do · [!] blocked on the us
 - [ ] FloorVault `rebalance`; BurnVault `burnToken` → then re-enable floor mode (`PAR_ALLOW_FLOOR_MODE=1`)
 
 ## 4. Page features the original had
-- [ ] Create: drag & drop / paste image, "Stocks" quick-pick category, token search by name for the pair
+- [x] Create: drag & drop / paste image with preview, "Stocks" quick pick (RH/Base/BNB via stocksonchain.io, Arc via longstocks.io, priceability from the on-chain pricer), token search by name/ticker/address (`/api/stocks`, `/api/tokens`)
 - [x] Stats: "Copy as text", holder payouts + wallets-paid charts, fee split section, leaderboards (volume, fees, holder payouts), per-chain cards, wallet counts
 - [x] Token page: holder-reward rounds (+ connected wallet's own rewards), burns list with burner labels, floor wall card + history
 - [ ] Live updates (Turbo Streams from the sync job) instead of polling

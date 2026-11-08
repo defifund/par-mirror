@@ -23,7 +23,8 @@ const statusAbi = parseAbi([
 // Launch form: one pair -> PairPadRouter.launchAndBuyWithEth, 2..5 pairs -> PairPadMultiRouter.launchAndBuyWithEth.
 export default class extends Controller {
   static values = { chain: Object, modes: Array }
-  static targets = ["status", "name", "symbol", "logo", "description", "social", "custom", "pairs", "tax", "taxLabel", "feeLine", "devBuy", "launchFee", "startMcap", "submit", "msg"]
+  static targets = ["status", "name", "symbol", "logo", "description", "social", "custom", "pairs", "tax", "taxLabel", "feeLine", "devBuy", "launchFee", "startMcap", "submit", "msg",
+                    "drop", "preview", "file", "stocksChip", "stocksPanel", "stocksFilter", "stocksList", "stocksNote", "results"]
 
   async connect() {
     this.ci = this.chainValue
@@ -43,8 +44,20 @@ export default class extends Controller {
       this.tax()
     } catch (e) { showMsg(this.msgTarget, false, "Could not read factory terms: " + errMsg(e)) }
     this.offWallet = onWallet(() => this.checkStatus())
+    // paste an image anywhere on the page (not into a text field) to use it as the token image
+    this.onPaste = (e) => {
+      const file = [...(e.clipboardData?.files || [])].find((f) => f.type.startsWith("image/"))
+      if (file) { e.preventDefault(); this.useImage(file) }
+    }
+    document.addEventListener("paste", this.onPaste)
+    this.onDocClick = (e) => { if (this.hasResultsTarget && !e.target.closest(".search-box")) this.resultsTarget.hidden = true }
+    document.addEventListener("click", this.onDocClick)
   }
-  disconnect() { this.offWallet?.() }
+  disconnect() {
+    this.offWallet?.()
+    document.removeEventListener("paste", this.onPaste)
+    document.removeEventListener("click", this.onDocClick)
+  }
 
   // The factory owner (the original team) can close launching at any time; say so instead of
   // letting the wallet fail on a reverted transaction.
@@ -97,7 +110,12 @@ export default class extends Controller {
     await this.addPair(addr, { symbol: e.currentTarget.dataset.symbol, decimals: Number(e.currentTarget.dataset.decimals) })
   }
 
-  addCustom() { this.addPair(this.customTarget.value.trim().toLowerCase()) }
+  addCustom(e) {
+    e?.preventDefault()
+    const v = this.customTarget.value.trim().toLowerCase()
+    if (/^0x[0-9a-f]{40}$/.test(v)) { this.resultsTarget.hidden = true; return this.addPair(v) }
+    if (this.results?.length) return this.pickResult({ preventDefault() {}, currentTarget: { dataset: { index: 0 } } })
+  }
 
   async addPair(addr, known) {
     this.msgTarget.hidden = true
@@ -131,9 +149,34 @@ export default class extends Controller {
     this.feeLineTarget.textContent = `Every trade pays a ${((base + bps) / 100).toFixed(2)}% pool fee: ${base / 100}% base fee (${share / 100}% of it to the protocol) plus your ${(bps / 100).toFixed(1)}% tax.`
   }
 
-  async upload(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
+  // ---- token image: drop, browse or paste; preview at once, pin to IPFS when this mirror has an upload key ----
+  browse(e) { if (e.target !== this.fileTarget) this.fileTarget.click() }
+  dragOver(e) { e.preventDefault(); this.dropTarget.classList.add("over") }
+  dragLeave() { this.dropTarget.classList.remove("over") }
+  drop(e) {
+    e.preventDefault()
+    this.dropTarget.classList.remove("over")
+    const file = [...(e.dataTransfer?.files || [])].find((f) => f.type.startsWith("image/"))
+    if (file) this.useImage(file)
+  }
+  picked(e) { const f = e.target.files?.[0]; if (f) this.useImage(f); e.target.value = "" }
+
+  logoChanged() {
+    const v = this.logoTarget.value.trim()
+    const url = v.startsWith("ipfs://") ? `https://ipfs.io/ipfs/${v.slice(7)}` : /^https:\/\//.test(v) ? v : null
+    if (url) { this.previewTarget.src = url; this.previewTarget.hidden = false }
+  }
+
+  async useImage(file) {
+    if (!/^image\/(png|jpeg|gif|webp)$/.test(file.type)) return showMsg(this.msgTarget, false, "Use a PNG, JPG, GIF or WebP image")
+    if (file.size > 4 * 1024 * 1024) return showMsg(this.msgTarget, false, "The image is larger than 4 MB")
+    if (this.previewUrl) URL.revokeObjectURL(this.previewUrl)
+    this.previewUrl = URL.createObjectURL(file)
+    this.previewTarget.src = this.previewUrl
+    this.previewTarget.hidden = false
+    if (this.dropTarget.dataset.upload !== "1") {
+      return showMsg(this.msgTarget, false, "Image upload is not configured on this mirror: pin the image yourself and paste its ipfs:// or https:// link")
+    }
     showMsg(this.msgTarget, true, "Uploading image…")
     try {
       const fd = new FormData()
@@ -144,6 +187,70 @@ export default class extends Controller {
       this.logoTarget.value = j.uri
       showMsg(this.msgTarget, true, `Pinned as ${j.uri}`)
     } catch (err) { showMsg(this.msgTarget, false, errMsg(err)) }
+  }
+
+  // ---- "Stocks" quick pick ----
+  async toggleStocks() {
+    const open = this.stocksPanelTarget.hidden
+    this.stocksPanelTarget.hidden = !open
+    this.stocksChipTarget.classList.toggle("on", open)
+    if (open && !this.stocks) {
+      try {
+        const r = await fetch(`/api/stocks?chain=${this.ci.slug}`)
+        const j = await r.json()
+        if (!r.ok) throw new Error(j.error || "stock list unavailable")
+        this.stocks = j
+        const by = j.kind === "bridged" ? `bridged by ${j.issuer}` : `from ${j.issuers.map((i) => i.name).join(" & ")}`
+        const tradable = j.items.filter((i) => i.priceable).length
+        this.stocksNoteTarget.innerHTML = `${j.items.length} stock tokens ${by} · ${tradable} tradable. Greyed ones have no pool deep enough for the on-chain pricer yet, so a market against them cannot be opened. List via <a href="${j.attribution.url}" target="_blank" rel="noopener">${j.attribution.name}</a>${j.attribution.license ? ` (${j.attribution.license})` : ""}.`
+      } catch (e) { this.stocksListTarget.innerHTML = `<span class="muted small">${errMsg(e)}</span>`; return }
+    }
+    this.renderStocks()
+  }
+
+  renderStocks() {
+    if (!this.stocks) return
+    const q = this.stocksFilterTarget.value.trim().toLowerCase()
+    const items = this.stocks.items.filter((i) => !q || i.symbol.toLowerCase().includes(q) || (i.name || "").toLowerCase().includes(q))
+    const chosen = new Set(this.pairs.map((p) => p.address))
+    this.stocksListTarget.innerHTML = items.slice(0, 120).map((i) =>
+      `<button class="chip stock${chosen.has(i.address) ? " on" : ""}" ${i.priceable ? "" : "disabled"} title="${esc(i.name || "")}${i.priceable ? "" : " · cannot be priced yet"}"
+        data-action="create#pickStock" data-address="${i.address}" data-symbol="${esc(i.symbol)}" data-decimals="${i.decimals}">${esc(i.symbol)}</button>`).join("")
+      || `<span class="muted small">No stock matches.</span>`
+  }
+
+  async pickStock(e) {
+    const b = e.currentTarget
+    const i = this.pairs.findIndex((p) => p.address === b.dataset.address)
+    if (i >= 0) { if (this.pairs.length > 1) this.pairs.splice(i, 1); this.renderPairs() }
+    else await this.addPair(b.dataset.address, { symbol: b.dataset.symbol, decimals: Number(b.dataset.decimals) })
+    this.renderStocks()
+  }
+
+  // ---- "Any token": search by name / ticker, or a pasted address ----
+  search() {
+    clearTimeout(this.searchTimer)
+    const q = this.customTarget.value.trim()
+    if (q.length < 2) { this.resultsTarget.hidden = true; return }
+    this.searchTimer = setTimeout(async () => {
+      try {
+        const j = await (await fetch(`/api/tokens?chain=${this.ci.slug}&q=${encodeURIComponent(q)}`)).json()
+        this.results = j.items
+        const label = { quote: "used as a pair", verified: "verified", stock: "stock", par: "par token", address: "" }
+        this.resultsTarget.innerHTML = j.items.map((t, n) =>
+          `<button class="result" data-action="create#pickResult" data-index="${n}"><b>${esc(t.symbol || short(t.address))}</b>
+            <span class="muted small">${esc(t.name && t.name !== t.symbol ? t.name : "")} ${label[t.kind] ? `· ${label[t.kind]}` : ""} · ${short(t.address)}</span></button>`).join("")
+          || `<div class="muted small pad">No match. Paste the token's contract address instead.</div>`
+        this.resultsTarget.hidden = false
+      } catch { this.resultsTarget.hidden = true }
+    }, 200)
+  }
+
+  async pickResult(e) {
+    e.preventDefault()
+    const t = this.results[Number(e.currentTarget.dataset.index)]
+    this.resultsTarget.hidden = true
+    await this.addPair(t.address, t.symbol && t.decimals != null ? { symbol: t.symbol, decimals: Number(t.decimals) } : undefined)
   }
 
   async launch() {
@@ -208,3 +315,5 @@ export default class extends Controller {
     finally { btn.disabled = false; btn.textContent = "Launch" }
   }
 }
+
+function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]) }

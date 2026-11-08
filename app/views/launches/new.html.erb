@@ -14,10 +14,16 @@
     <div class="form">
       <label><span class="lbl">Token name</span><input class="input" maxlength="32" data-create-target="name"></label>
       <label><span class="lbl">Ticker</span><input class="input" maxlength="12" data-create-target="symbol"></label>
-      <label><span class="lbl">Image URI <span class="hint">ipfs:// or https://</span></span><input class="input" placeholder="ipfs://…" data-create-target="logo"></label>
-      <% if @upload %>
-        <label><span class="lbl">…or upload <span class="hint">PNG · JPG · GIF · WebP, ≤ 4 MB</span></span><input type="file" accept="image/png,image/jpeg,image/gif,image/webp" data-action="change->create#upload"></label>
-      <% end %>
+      <div class="span2 dropzone" data-create-target="drop" data-upload="<%= @upload ? 1 : 0 %>" tabindex="0" role="button" aria-label="Add token image"
+           data-action="click->create#browse keydown.enter->create#browse dragover->create#dragOver dragleave->create#dragLeave drop->create#drop">
+        <img class="drop-preview" alt="" data-create-target="preview" hidden>
+        <div>
+          <b>Add token image</b>
+          <div class="small muted">Drop it here, click to browse or paste with Ctrl+V · PNG · JPG · GIF · WebP, ≤ 4 MB<%= " · upload is not configured on this mirror, use an image link below" unless @upload %></div>
+        </div>
+        <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden data-create-target="file" data-action="change->create#picked">
+      </div>
+      <label class="span2"><span class="lbl">Image link <span class="hint">ipfs:// or https:// — filled in by the upload</span></span><input class="input" placeholder="ipfs://…" data-create-target="logo" data-action="change->create#logoChanged"></label>
       <label class="span2"><span class="lbl">Description <span class="hint">optional</span></span><textarea class="input" rows="3" data-create-target="description"></textarea></label>
       <% %w[website twitter telegram discord farcaster].each do |k| %>
         <label><span class="lbl"><%= k == "twitter" ? "X / Twitter" : k.capitalize %> <span class="hint">optional, full URL</span></span><input class="input" placeholder="https://" data-create-target="social" data-key="<%= k %>"></label>
@@ -32,10 +38,17 @@
       <button class="chip on" data-action="create#togglePreset" data-address="<%= a.reference[:address].downcase %>" data-symbol="<%= ref %>" data-decimals="<%= a.reference[:decimals] %>"><%= ref %></button>
       <button class="chip" data-action="create#togglePreset" data-address="<%= a.addr(:usdg) %>" data-symbol="<%= { 4663 => "USDG", 8453 => "USDC", 5042 => "EURC", 56 => "USDT" }[a.id] %>" data-decimals="<%= a.id == 56 ? 18 : 6 %>"><%= { 4663 => "USDG", 8453 => "USDC", 5042 => "EURC", 56 => "USDT" }[a.id] %></button>
       <% if a.addr(:par) != Par::Chains::ZERO %><button class="chip" data-action="create#togglePreset" data-address="<%= a.addr(:par) %>" data-symbol="par" data-decimals="18">par</button><% end %>
+      <% if Par::Stocks::SOURCES[a.id] %><button class="chip" data-action="create#toggleStocks" data-create-target="stocksChip">Stocks <span class="muted small">tokenized stocks &amp; ETFs</span></button><% end %>
     </div>
-    <div class="row gap">
-      <input class="input grow" placeholder="Any token address on the chain" data-create-target="custom">
-      <button class="btn" data-action="create#addCustom">Add</button>
+    <div class="stock-panel" data-create-target="stocksPanel" hidden>
+      <input class="input" placeholder="Filter stocks by ticker or company" data-create-target="stocksFilter" data-action="input->create#renderStocks">
+      <div class="stock-grid" data-create-target="stocksList"><span class="muted small">Loading…</span></div>
+      <p class="small muted" data-create-target="stocksNote"></p>
+    </div>
+    <div class="search-box">
+      <input class="input" placeholder="Any token: search by name or ticker, or paste a contract address" autocomplete="off"
+             data-create-target="custom" data-action="input->create#search keydown.enter->create#addCustom focus->create#search">
+      <div class="search-results" data-create-target="results" hidden></div>
     </div>
     <div class="small row gap wrap"><span class="muted">Markets</span><span data-create-target="pairs"></span></div>
   </section>
