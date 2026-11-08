@@ -13,7 +13,7 @@ class SyncChainJob < ApplicationJob
     begin
       ix = Par::Indexer.new(Par::Chains.get(chain_id))
       ix.run_until(Process.clock_gettime(Process::CLOCK_MONOTONIC) + 50)
-      ix.fill_traders(limit: 64) unless ix.state.backfilling
+      ix.fill_traders(limit: 400) unless ix.state.backfilling # resolve tx.from for trades the transfers could not attribute
       behind = ix.state.cursor_block < ix.state.head_block.to_i
     rescue StandardError => e
       Rails.logger.error("[par #{chain_id}] sync error: #{e.class}: #{e.message}")

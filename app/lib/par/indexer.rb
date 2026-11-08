@@ -402,7 +402,8 @@ module Par
 
     # ---------- traders (tx.from) ----------
     def fill_traders(limit: 64, hashes: nil)
-      hashes ||= Trade.where(chain_id: chain.id, trader: nil).order(block_number: :desc).limit(limit).distinct.pluck(:tx_hash)
+      hashes ||= Trade.where(chain_id: chain.id, trader: nil).group(:tx_hash)
+                      .order(Arel.sql("MAX(block_number) DESC")).limit(limit).pluck(:tx_hash) # newest first
       return 0 if hashes.empty?
       found = rpc.pmap(hashes.uniq, threads: 8) { |h| [h, (rpc.tx_from(h) rescue nil)] }
       found.each { |h, from| Trade.where(chain_id: chain.id, tx_hash: h).update_all(trader: from) if from }
