@@ -30,6 +30,12 @@ module Par
 
       def find(chain, token) = copy(chain).by_token[token.to_s.downcase]
 
+      # every enabled chain, or one chain when `slug` names it ("all"/blank = every chain)
+      def across(slug = nil)
+        chains = slug.blank? || slug == "all" ? Chains.enabled : [ Chains.get(slug) ]
+        chains.flat_map { self.for(_1) }
+      end
+
       # data behind the rows changed; every process reloads within CHECK
       def changed!(chain_id)
         Rails.cache.write(version_key(chain_id), SecureRandom.hex(6))
