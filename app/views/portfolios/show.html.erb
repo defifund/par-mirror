@@ -1,9 +1,9 @@
-<% content_for :title, "Portfolio"; ref = current_chain.reference[:symbol] %>
+<% content_for :title, t("portfolio.title"); ref = current_chain.reference[:symbol] %>
 <div>
-  <h1>Portfolio</h1>
+  <h1><%= t("portfolio.title") %></h1>
   <% if @owner.nil? %>
-    <div class="card"><p class="muted">Connect a wallet to see what you hold, what you launched and the creator fees waiting for you on every chain, or open <code>/portfolio?owner=0x…</code> for any address.</p>
-      <button class="btn primary" data-action="wallet#login">Connect</button></div>
+    <div class="card"><p class="muted"><%= t("portfolio.connect_html") %></p>
+      <button class="btn primary" data-action="wallet#login"><%= t("js.wallet.connect") %></button></div>
   <% else %>
     <% prof = Profile.find_by(address: @owner) %>
     <% if prof&.name || prof&.bio %>
@@ -12,12 +12,12 @@
         <div>
           <% if prof.name %><h2><%= prof.name %></h2><% end %>
           <% if prof.bio %><p class="desc"><%= prof.bio %></p><% end %>
-          <div class="row gap small"><% prof.socials.each do |k, u| %><% if safe_url(u) %><%= link_to({ "twitter" => "X" }[k] || k.capitalize, u, target: "_blank", rel: "noopener nofollow") %><% end %><% end %></div>
+          <div class="row gap small"><% prof.socials.each do |k, u| %><% if safe_url(u) %><%= link_to(k == "twitter" ? "X" : t("create.social.#{k}", default: k.capitalize), u, target: "_blank", rel: "noopener nofollow") %><% end %><% end %></div>
         </div>
       </div>
     <% end %>
-    <p class="muted mono"><%= @owner %><% if current_wallet == @owner %> · <%= link_to (prof ? "edit profile" : "add a name and bio"), profile_path %><% end %></p>
-    <% if @sections.empty? %><div class="card"><p class="muted">Nothing on any par chain for this address yet.</p></div><% end %>
+    <p class="muted mono"><%= @owner %><% if current_wallet == @owner %> · <%= link_to (prof ? t("portfolio.edit_profile") : t("portfolio.add_profile")), profile_path %><% end %></p>
+    <% if @sections.empty? %><div class="card"><p class="muted"><%= t("portfolio.nothing") %></p></div><% end %>
     <% @sections.each do |chain, data| %>
       <%= render "portfolios/chain", chain:, data:, owner: @owner %>
     <% end %>

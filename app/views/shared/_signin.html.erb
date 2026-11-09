@@ -1,7 +1,7 @@
 <%# Sign-In with Ethereum box; `why` explains what signing in unlocks %>
 <div class="card stack" data-controller="siwe">
   <p><%= why %></p>
-  <p class="small muted">Signing a message is free and sends no transaction. It only proves to this mirror that you control the address. Smart-contract wallets (Safe etc.) are not supported yet.</p>
-  <div><button class="btn primary" data-siwe-target="button" data-action="siwe#signIn">Sign in with your wallet</button></div>
+  <p class="small muted"><%= t("signin.note") %></p>
+  <div><button class="btn primary" data-siwe-target="button" data-action="siwe#signIn"><%= t("signin.button") %></button></div>
   <div class="msg" data-siwe-target="msg" hidden></div>
 </div>

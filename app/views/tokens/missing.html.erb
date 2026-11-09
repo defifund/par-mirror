@@ -1,6 +1,6 @@
 <div class="card">
-  <h2>Token not found</h2>
-  <p class="muted"><code><%= params[:token] %></code> is not a par token on <%= current_chain.name %>, or the indexer has not reached its launch block yet
-  <% if (s = SyncState.find_by(chain_id: current_chain.id))&.backfilling %>(history replayed: <%= s.progress.round(1) %>%)<% end %>.</p>
-  <%= link_to "← Explore", root_path, class: "btn" %>
+  <h2><%= t("missing.title") %></h2>
+  <p class="muted"><%= t("missing.body_html", token: tag.code(params[:token]), chain: current_chain.name) %>
+  <% if (s = SyncState.find_by(chain_id: current_chain.id))&.backfilling %><%= t("missing.replayed", pct: s.progress.round(1)) %><% end %></p>
+  <%= link_to t("missing.back"), root_path, class: "btn" %>
 </div>

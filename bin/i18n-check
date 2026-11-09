@@ -7,7 +7,7 @@ flat = ->(h, pre = nil) { h.flat_map { |k, v| key = [pre, k].compact.join("."); 
 dicts = locales.to_h { |l| [l, flat.(YAML.load_file("config/locales/#{l}.yml")[l]).to_set] }
 used = []
 Dir["app/{views,helpers,lib,controllers,models}/**/*.{erb,rb}"].each { |f| File.read(f).scan(/\bt\(\s*"([a-z0-9_.]+)"/) { used << [$1, f] } }
-Dir["app/javascript/{controllers,par}/*.js"].each { |f| File.read(f).scan(/\bt\(\s*["`]([a-z0-9_.]+)["`]/) { used << ["js.#{$1}", f] } }
+Dir["app/javascript/{controllers,par}/*.js"].each { |f| File.read(f).scan(/\b(?:t|tr)\(\s*["`]([a-z0-9_.]+)["`]/) { used << ["js.#{$1}", f] } }
 Dir["app/lib/par/fee_modes.rb"].each { |f| File.read(f).scan(/t\.\("([a-z0-9_.]+)"\)/) { used << ["fee_modes.#{$1}", f] } }
 missing = used.uniq.reject { |k, _| k == "js" || dicts.values.all? { _1.include?(k) } }
 puts "keys used: #{used.map(&:first).uniq.size} · locales: #{locales.join(', ')}"

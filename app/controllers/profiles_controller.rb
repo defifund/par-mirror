@@ -14,7 +14,7 @@ class ProfilesController < ApplicationController
     @profile = Profile.find_or_initialize_by(address: current_wallet)
     @profile.assign_attributes(params.require(:profile).permit(:name, :bio, :avatar, socials: Profile::SOCIALS))
     if @profile.save
-      redirect_to profile_path, notice: "Profile saved."
+      redirect_to profile_path, notice: t("profile.saved")
     else
       @tokens = []
       render :edit, status: :unprocessable_entity

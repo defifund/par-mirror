@@ -9,7 +9,7 @@ class TokenProfilesController < ApplicationController
     @tp.assign_attributes(params.require(:token_profile).permit(:description, :logo, socials: TokenProfile::SOCIALS))
     @tp.updated_by = current_wallet
     if @tp.save
-      redirect_to token_path(chain: current_chain.slug, token: @launch.token), notice: "Token details saved."
+      redirect_to token_path(chain: current_chain.slug, token: @launch.token), notice: t("token_edit.saved")
     else
       render :edit, status: :unprocessable_entity
     end

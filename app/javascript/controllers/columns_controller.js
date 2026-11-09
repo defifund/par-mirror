@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { t as tr } from "../par/i18n" // several locals here are named t
 
 // Daily column chart (single or stacked) drawn as SVG.
 // Specs (dataviz): columns ≤ 24px, 4px rounded data-end, square at the baseline; 2px surface gap
@@ -35,7 +36,7 @@ export default class extends Controller {
     return f === "usd" ? "$" + c(v) : c(v)
   }
   dayLabel(t, long = false) {
-    return new Date(t * 1000).toLocaleDateString(undefined, long ? { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" } : { month: "short", day: "numeric", timeZone: "UTC" })
+    return new Date(t * 1000).toLocaleDateString(document.documentElement.lang || undefined, long ? { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" } : { month: "short", day: "numeric", timeZone: "UTC" })
   }
   total(d) { return this.seriesValue.reduce((a, s) => a + (d[s.key] || 0), 0) }
 
@@ -122,7 +123,7 @@ export default class extends Controller {
     head.className = "tip-day"
     head.textContent = this.dayLabel(d.day, true)
     tip.appendChild(head)
-    const rows = this.seriesValue.length > 1 ? [...this.seriesValue, { key: null, label: "Total" }] : this.seriesValue
+    const rows = this.seriesValue.length > 1 ? [...this.seriesValue, { key: null, label: tr("stats.total") }] : this.seriesValue
     rows.forEach((s, k) => {
       const row = document.createElement("div")
       row.className = "tip-row"
@@ -169,7 +170,7 @@ export default class extends Controller {
     const t = document.createElement("table")
     t.className = "table small"
     const hr = t.createTHead().insertRow()
-    for (const h of ["Day", ...this.seriesValue.map((s) => s.label)]) { const th = document.createElement("th"); th.textContent = h; hr.appendChild(th) }
+    for (const h of [tr("stats.day"), ...this.seriesValue.map((s) => s.label)]) { const th = document.createElement("th"); th.textContent = h; hr.appendChild(th) }
     const body = t.createTBody()
     for (const d of [...this.daysValue].reverse()) {
       const r = body.insertRow()

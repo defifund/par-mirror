@@ -20,7 +20,7 @@ class TokenProfile < ApplicationRecord
   end
 
   def links
-    errors.add(:logo, "must be an ipfs:// or https:// link") if logo && !logo.match?(%r{\A(ipfs://|https://)\S+\z})
-    socials.each { |k, v| errors.add(:base, "#{k} must be an https:// link") unless v.start_with?("https://") }
+    errors.add(:logo, :image_link) if logo && !logo.match?(%r{\A(ipfs://|https://)\S+\z})
+    socials.each { |k, v| errors.add(:base, :https_link, field: I18n.t("create.social.#{k}", default: k.capitalize)) unless v.start_with?("https://") }
   end
 end

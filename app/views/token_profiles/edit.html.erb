@@ -1,23 +1,23 @@
-<% l = @launch; content_for :title, "Edit #{l.name}" %>
+<% l = @launch; content_for :title, t("token_edit.title", name: l.name) %>
 <div class="narrow">
-  <h1>Edit <%= l.name %> <span class="muted">$<%= l.symbol %></span></h1>
-  <p class="small"><%= link_to "← back to the token", token_path(chain: current_chain.slug, token: l.token) %></p>
+  <h1><%= t("token_edit.title", name: l.name) %> <span class="muted">$<%= l.symbol %></span></h1>
+  <p class="small"><%= link_to t("token_edit.back"), token_path(chain: current_chain.slug, token: l.token) %></p>
   <% if current_wallet.nil? %>
-    <%= render "shared/signin", why: "Sign in with the wallet that deployed this token (or receives its creator fees) to correct its description, image and links." %>
+    <%= render "shared/signin", why: t("token_edit.why") %>
   <% elsif !@allowed %>
-    <div class="msg err">Only the deployer (<span class="mono"><%= short(l.deployer) %></span>) or the creator-fee recipient (<span class="mono"><%= short(l.creator_fee_recipient) %></span>) can edit this token. You are signed in as <span class="mono"><%= short(current_wallet) %></span>.</div>
+    <div class="msg err"><%= t("token_edit.not_allowed_html", deployer: tag.span(short(l.deployer), class: "mono"), recipient: tag.span(short(l.creator_fee_recipient), class: "mono"), me: tag.span(short(current_wallet), class: "mono")) %></div>
   <% else %>
     <%= form_with model: @tp, url: edit_token_path(chain: current_chain.slug, token: l.token), method: :patch, class: "card stack" do |f| %>
       <% if @tp.errors.any? %><div class="msg err"><%= @tp.errors.full_messages.to_sentence %></div><% end %>
-      <p class="small muted">Leave a field empty to keep what was set at launch<%= ": #{l.description.truncate(80)}" if l.description.present? %>.</p>
+      <p class="small muted"><%= l.description.present? ? t("token_edit.keep_empty_with", desc: l.description.truncate(80)) : t("token_edit.keep_empty") %></p>
       <div class="form">
-        <label class="span2"><span class="lbl">Image link <span class="hint">ipfs:// or https://</span></span><%= f.text_field :logo, class: "input", placeholder: l.logo.presence || "ipfs://…" %></label>
-        <label class="span2"><span class="lbl">Description <span class="hint">up to 1000 characters</span></span><%= f.text_area :description, class: "input", rows: 4, maxlength: 1000 %></label>
+        <label class="span2"><span class="lbl"><%= t("create.image_link") %> <span class="hint">ipfs:// / https://</span></span><%= f.text_field :logo, class: "input", placeholder: l.logo.presence || "ipfs://…" %></label>
+        <label class="span2"><span class="lbl"><%= t("create.description") %> <span class="hint"><%= t("profile.max_chars", n: 1000) %></span></span><%= f.text_area :description, class: "input", rows: 4, maxlength: 1000 %></label>
                   <% TokenProfile::SOCIALS.each do |k| %>
-            <label><span class="lbl"><%= k == "twitter" ? "X / Twitter" : k.capitalize %></span><%= text_field_tag "token_profile[socials][#{k}]", @tp.socials[k], class: "input", placeholder: (l.socials || {})[k].presence || "https://" %></label>
+            <label><span class="lbl"><%= k == "twitter" ? "X / Twitter" : t("create.social.#{k}") %></span><%= text_field_tag "token_profile[socials][#{k}]", @tp.socials[k], class: "input", placeholder: (l.socials || {})[k].presence || "https://" %></label>
           <% end %>
       </div>
-      <div><%= f.submit "Save", class: "btn primary" %></div>
+      <div><%= f.submit t("token_edit.save"), class: "btn primary" %></div>
     <% end %>
   <% end %>
 </div>

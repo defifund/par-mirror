@@ -1,0 +1,8 @@
+#!/bin/sh
+# Regenerates config/locales/zh-TW.yml from zh-CN.yml: OpenCC s2twp (Taiwan phrases), then the fixes
+# where its IT-jargon mapping is wrong for this site. Edit zh-CN.yml, then run this.
+set -e
+cd "$(dirname "$0")/.."
+opencc -c s2twp -i config/locales/zh-CN.yml -o config/locales/zh-TW.yml
+sed -i '1s/^zh-CN:/zh-TW:/; s/程式碼/代號/g; s/映象/鏡像/g; s/許可權/權限/g; s/銷燬/銷毀/g; s/型別/類型/g; s/建立者/創建者/g; s/連線/連接/g' config/locales/zh-TW.yml
+echo "zh-TW.yml regenerated"

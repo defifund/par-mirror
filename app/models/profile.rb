@@ -23,9 +23,9 @@ class Profile < ApplicationRecord
   end
 
   def sane
-    errors.add(:name, "can't look like the original team or the site") if name&.match?(RESERVED)
-    errors.add(:name, "can't be an address") if name&.match?(/0x\h{6,}/i)
-    errors.add(:avatar, "must be an ipfs:// or https:// link") if avatar && !avatar.match?(%r{\A(ipfs://|https://)\S+\z})
-    socials.each { |k, v| errors.add(:base, "#{k} must be an https:// link") if %w[website farcaster].include?(k) && !v.start_with?("https://") }
+    errors.add(:name, :reserved) if name&.match?(RESERVED)
+    errors.add(:name, :address_like) if name&.match?(/0x\h{6,}/i)
+    errors.add(:avatar, :image_link) if avatar && !avatar.match?(%r{\A(ipfs://|https://)\S+\z})
+    socials.each { |k, v| errors.add(:base, :https_link, field: I18n.t("create.social.#{k}", default: k.capitalize)) if %w[website farcaster].include?(k) && !v.start_with?("https://") }
   end
 end

@@ -65,19 +65,20 @@ module ParHelper
   # Plain-text summary of the stats page for "Copy as text"
   def stats_text(s, d, leaders, chain_tab)
     days = d[:days]
-    span = d[:range] == "all" ? "all time" : "last #{d[:range].delete('d')} days"
-    scope = chain_tab == "all" ? "all chains" : Par::Chains.get(chain_tab).name
+    span = d[:range] == "all" ? t("stats.all_time") : t("stats.last_days", n: d[:range].delete("d"))
+    scope = chain_tab == "all" ? t("common.all_chains") : Par::Chains.get(chain_tab).name
     u = s[:refUsd]
-    lines = ["par stats (#{scope}, #{span}, #{Time.at(d[:from]).utc.strftime('%b %-d')} – #{Time.at(d[:to]).utc.strftime('%b %-d, %Y')})",
-             "Volume: #{usd(days.sum { _1[:volumeUsd] })} in the window, #{usd(s[:volumeEth] * u)} all time",
-             "Fees: #{usd(days.sum { _1[:creatorFeesUsd] })} to creators & holders, #{usd(days.sum { _1[:protocolFeesUsd] })} to the protocol",
-             "Trades: #{number_with_delimiter(days.sum { _1[:trades] })} · new tokens: #{days.sum { _1[:launches] }} · tokens in total: #{s[:launches]}",
-             "Holders: #{number_with_delimiter(s[:holderWallets])} wallets hold a par token; #{number_with_delimiter(s[:traderWallets])} ever traded",
-             "Holder payouts: #{usd(days.sum { _1[:payoutsUsd] })} in the window, #{usd(s[:payoutsEth] * u)} all time"]
-    lines << "$par burned: #{compact(units(s[:par][:burned]))}" if s[:par]
-    { volume: "Top by volume", fees: "Top by fees", payouts: "Top by holder payouts" }.each do |k, t|
+    dates = "#{l(Time.at(d[:from]).utc.to_date, format: :md)} – #{l(Time.at(d[:to]).utc.to_date, format: :mdy)}"
+    lines = [t("stats.text.head", area: scope, span:, dates:),
+             t("stats.text.volume", window: usd(days.sum { _1[:volumeUsd] }), all: usd(s[:volumeEth] * u)),
+             t("stats.text.fees", creators: usd(days.sum { _1[:creatorFeesUsd] }), protocol: usd(days.sum { _1[:protocolFeesUsd] })),
+             t("stats.text.trades", trades: number_with_delimiter(days.sum { _1[:trades] }), new: days.sum { _1[:launches] }, total: s[:launches]),
+             t("stats.text.holders", holders: number_with_delimiter(s[:holderWallets]), traders: number_with_delimiter(s[:traderWallets])),
+             t("stats.text.payouts", window: usd(days.sum { _1[:payoutsUsd] }), all: usd(s[:payoutsEth] * u))]
+    lines << t("stats.text.par_burned", v: compact(units(s[:par][:burned]))) if s[:par]
+    %i[volume fees payouts].each do |k|
       next if leaders[k].empty?
-      lines << "#{t}: " + leaders[k].first(5).map { "$#{_1[:symbol]} #{usd(_1[:valueUsd])}" }.join(", ")
+      lines << t("stats.text.top_#{k}") + leaders[k].first(5).map { "$#{_1[:symbol]} #{usd(_1[:valueUsd])}" }.join(", ")
     end
     lines.join("\n")
   end

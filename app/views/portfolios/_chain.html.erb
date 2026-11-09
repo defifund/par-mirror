@@ -3,17 +3,17 @@
 <h2 class="chain-title"><%= chain_badge(chain.slug) %> <%= chain.name %></h2>
 
     <section class="card">
-      <h3>Creator fees to claim</h3>
-      <p class="small muted">Creator shares wait in the fee escrow (<%= short(chain.addr(:fee_escrow)) %>) until the recipient claims them. Collect fees on a token page first to move the newest ones in.</p>
-      <div data-portfolio-target="claimable" class="small">Loading…</div>
+      <h3><%= t("portfolio.claim_title") %></h3>
+      <p class="small muted"><%= t("portfolio.claim_lead", escrow: short(chain.addr(:fee_escrow))) %></p>
+      <div data-portfolio-target="claimable" class="small"><%= t("common.loading") %></div>
     </section>
 
     <section class="card">
-      <h3>Holdings</h3>
-      <% if data[:positions].empty? %><p class="muted small">No par tokens held<%= " (yet: history is still syncing)" if SyncState.find_by(chain_id: chain.id)&.backfilling %>.</p><% else %>
+      <h3><%= t("portfolio.holdings") %></h3>
+      <% if data[:positions].empty? %><p class="muted small"><%= t("portfolio.no_holdings") %><%= t("common.still_syncing") if SyncState.find_by(chain_id: chain.id)&.backfilling %></p><% else %>
         <div class="table-wrap">
         <table class="table">
-          <thead><tr><th>Token</th><th>Balance</th><th>Value</th><th>Bought</th><th>Sold</th></tr></thead>
+          <thead><tr><th><%= t("portfolio.col.token") %></th><th><%= t("token.col.balance") %></th><th><%= t("portfolio.col.value") %></th><th><%= t("portfolio.col.bought") %></th><th><%= t("portfolio.col.sold") %></th></tr></thead>
           <tbody>
             <% data[:positions].each do |p| r = p[:launch] %>
               <tr>
@@ -31,18 +31,18 @@
     </section>
 
     <section class="card">
-      <h3>Launched or receiving fees</h3>
-      <% if data[:launched].empty? %><p class="muted small">None.</p><% else %>
+      <h3><%= t("portfolio.launched") %></h3>
+      <% if data[:launched].empty? %><p class="muted small"><%= t("portfolio.none") %></p><% else %>
         <div class="table-wrap">
         <table class="table">
-          <thead><tr><th>Token</th><th>Market cap</th><th>Creator earned</th><th>Fee mode</th></tr></thead>
+          <thead><tr><th><%= t("portfolio.col.token") %></th><th><%= t("token.mcap") %></th><th><%= t("portfolio.col.earned") %></th><th><%= t("portfolio.col.mode") %></th></tr></thead>
           <tbody>
             <% data[:launched].each do |r| %>
               <tr>
                 <td><%= link_to "#{r[:name]} ($#{r[:symbol]})", token_path(chain: chain.slug, token: r[:token]) %></td>
                 <td><%= usd(r[:marketCapUsd]) %></td>
                 <td><%= compact(r[:creatorFeesEth]) %> <%= ref %></td>
-                <td><%= r[:feeMode] %></td>
+                <td><%= t("fee_modes.#{r[:feeMode]}.title", default: r[:feeMode].to_s) %></td>
               </tr>
             <% end %>
           </tbody>
