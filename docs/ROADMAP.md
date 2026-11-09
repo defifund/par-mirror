@@ -28,7 +28,7 @@ Status legend: [x] done · [~] in progress · [ ] to do · [!] blocked on the us
 
 ## 4. Page features the original had
 - [x] Create: drag & drop / paste image with preview, "Stocks" quick pick (RH/Base/BNB via stocksonchain.io, Arc via longstocks.io, priceability from the on-chain pricer), token search by name/ticker/address (`/api/stocks`, `/api/tokens`)
-- [x] Images on our own IPFS node (kubo accessory, 512 MB cap): `PinLogosJob` copies the original 2,940 logos off Pinata as CARs (same CIDs), `/ipfs/<cid>` serves them (falls back to the Pinata gateway), uploads pin to the node. Later: R2 backup of the datastore
+- [x] Images on our own IPFS node (kubo accessory, 512 MB cap): `PinLogosJob` copies the original 2,940 logos off Pinata as CARs (same CIDs), `/ipfs/<cid>` serves them (falls back to the Pinata gateway), uploads pin to the node. Hourly `BackupPinsJob` copies each pin as a CAR to R2 bucket `par-mirror-ipfs` (token `par-mirror-backup`: that bucket only, server IP only; keys in 1Password Personal/par-mirror R2)
 - [x] Stats: "Copy as text", holder payouts + wallets-paid charts, fee split section, leaderboards (volume, fees, holder payouts), per-chain cards, wallet counts
 - [x] Token page: holder-reward rounds (+ connected wallet's own rewards), burns list with burner labels, floor wall card + history
 - [x] Live updates: pages poll the cached `/idx/:chain/pulse` every 5 s (paused in background tabs); the token page swaps its `[data-live]` blocks when the token traded (new rows flash), Explore offers "N new tokens launched · show". `/events` streams capped per process (`PAR_MAX_SSE_STREAMS`, default 1) since each holds a web thread
