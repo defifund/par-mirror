@@ -22,14 +22,14 @@
 
 <% w = ->(k) { days.sum { _1[k] } }; at = ->(v) { d[:range] == "all" ? "" : "#{v} all time · " } %>
 <div class="stat-tiles">
-  <div class="card"><span class="muted small">Volume, <%= span %></span><b><%= usd(w.(:volumeUsd)) %></b><span class="small muted"><%= at.(usd(s[:volumeEth] * u)) %>24h <%= usd(s[:volume24hEth] * u) %></span></div>
-  <div class="card"><span class="muted small">Fees to creators &amp; holders, <%= span %></span><b><%= usd(w.(:creatorFeesUsd)) %></b><span class="small muted"><%= at.(usd(s[:creatorFeesGenEth] * u)) %><%= usd(s[:creatorEarnedEth] * u) %> collected so far</span></div>
-  <div class="card"><span class="muted small">Fees to the protocol, <%= span %></span><b><%= usd(w.(:protocolFeesUsd)) %></b><span class="small muted"><%= at.(usd(s[:protocolFeesGenEth] * u)) %><%= usd(s[:protocolFeesEth] * u) %> collected so far</span></div>
-  <div class="card"><span class="muted small">New tokens, <%= span %></span><b><%= number_with_delimiter(w.(:launches)) %></b><span class="small muted"><%= number_with_delimiter(s[:launches]) %> in total · <%= s[:launchesTraded] %> traded · <%= s[:launches24h] %> in 24h</span></div>
-  <div class="card"><span class="muted small">Trades, <%= span %></span><b><%= compact(w.(:trades), 1) %></b><span class="small muted"><%= at.(compact(s[:trades], 1)) %><%= compact(s[:trades24h], 1) %> in 24h</span></div>
+  <div class="card"><span class="muted small">Volume</span><b><%= usd(w.(:volumeUsd)) %></b><span class="small muted"><%= at.(usd(s[:volumeEth] * u)) %>24h <%= usd(s[:volume24hEth] * u) %></span></div>
+  <div class="card"><span class="muted small">Fees to creators &amp; holders</span><b><%= usd(w.(:creatorFeesUsd)) %></b><span class="small muted"><%= at.(usd(s[:creatorFeesGenEth] * u)) %><%= usd(s[:creatorEarnedEth] * u) %> collected so far</span></div>
+  <div class="card"><span class="muted small">Fees to the protocol</span><b><%= usd(w.(:protocolFeesUsd)) %></b><span class="small muted"><%= at.(usd(s[:protocolFeesGenEth] * u)) %><%= usd(s[:protocolFeesEth] * u) %> collected so far</span></div>
+  <div class="card"><span class="muted small">New tokens</span><b><%= number_with_delimiter(w.(:launches)) %></b><span class="small muted"><%= number_with_delimiter(s[:launches]) %> in total · <%= s[:launchesTraded] %> traded · <%= s[:launches24h] %> in 24h</span></div>
+  <div class="card"><span class="muted small">Trades</span><b><%= compact(w.(:trades), 1) %></b><span class="small muted"><%= at.(compact(s[:trades], 1)) %><%= compact(s[:trades24h], 1) %> in 24h</span></div>
   <div class="card"><span class="muted small">Holder positions, now</span><b><%= compact(s[:holders], 1) %></b><span class="small muted">across <%= s[:tokensWithHolders] %> tokens</span></div>
   <% if s[:par] %>
-    <div class="card"><span class="muted small">$par burned, <%= span %></span><b><%= compact(w.(:parBurned)) %></b><span class="small muted"><%= compact(units(s[:par][:burned])) %> in total<%= @buybacks ? " · #{@buybacks[:count]} buybacks, #{compact(@buybacks[:ethSpent])} ETH spent" : "" %></span></div>
+    <div class="card"><span class="muted small">$par burned</span><b><%= compact(w.(:parBurned)) %></b><span class="small muted"><%= compact(units(s[:par][:burned])) %> in total<%= @buybacks ? " · #{@buybacks[:count]} buybacks, #{compact(@buybacks[:ethSpent])} ETH spent" : "" %></span></div>
   <% end %>
 </div>
 
@@ -64,8 +64,8 @@
 
 <% win_creator = days.sum { _1[:creatorFeesUsd] }; win_proto = days.sum { _1[:protocolFeesUsd] } %>
 <div class="stat-tiles" style="margin-top:16px">
-  <div class="card"><span class="muted small">To creators &amp; holders, <%= span %></span><b><%= usd(win_creator) %></b></div>
-  <div class="card"><span class="muted small">To the protocol, <%= span %></span><b><%= usd(win_proto) %></b><span class="small muted">token side burned; quote side buys &amp; burns $par (60%), rest to the original team</span></div>
+  <div class="card"><span class="muted small">To creators &amp; holders</span><b><%= usd(win_creator) %></b></div>
+  <div class="card"><span class="muted small">To the protocol</span><b><%= usd(win_proto) %></b><span class="small muted">token side burned; quote side buys &amp; burns $par (60%), rest to the original team</span></div>
   <div class="card"><span class="muted small">Paid out to holders, all time</span><b><%= usd(s[:payoutsEth] * u) %></b><span class="small muted">in <%= number_with_delimiter(s[:payouts]) %> wallet payouts</span></div>
 </div>
 
@@ -80,7 +80,7 @@
 <div class="stat-tiles">
   <div class="card"><span class="muted small">Wallets holding a par token now</span><b><%= number_with_delimiter(s[:holderWallets]) %></b></div>
   <div class="card"><span class="muted small">Wallets that ever traded</span><b><%= number_with_delimiter(s[:traderWallets]) %></b></div>
-  <div class="card"><span class="muted small">Payout rounds, <%= span %></span><b><%= number_with_delimiter(days.sum { _1[:payoutRounds] }) %></b><span class="small muted">one per token, asset and hour</span></div>
+  <div class="card"><span class="muted small">Payout rounds</span><b><%= number_with_delimiter(days.sum { _1[:payoutRounds] }) %></b><span class="small muted">one per token, asset and hour</span></div>
 </div>
 
 <h2 class="section">Where fees go</h2>
