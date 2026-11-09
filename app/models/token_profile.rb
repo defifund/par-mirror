@@ -5,7 +5,7 @@ class TokenProfile < ApplicationRecord
   validates :token, format: { with: /\A0x\h{40}\z/ }
   validates :description, length: { maximum: 1000 }
   validate :links
-  after_commit { Rails.cache.delete("par/rows/#{chain_id}") }
+  after_commit { Par::LaunchRows.expire(chain_id) }
 
   # the deployer or the creator-fee recipient of the launch may edit
   def self.editor?(launch, address) = address.present? && [launch.deployer, launch.creator_fee_recipient].compact.map(&:downcase).include?(address.downcase)

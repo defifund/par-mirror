@@ -11,15 +11,68 @@ module Par
       "holders" => ->(r) { r[:holders] }
     }.freeze
 
-    def self.for(chain) = Rails.cache.fetch("par/rows/#{chain.id}", expires_in: 10.seconds) { new(chain).build }
+    # Every page reads these rows (3.6k launches on Robinhood Chain, ~12 MB), so each Puma process keeps its own copy
+    # in memory, indexed by token. Requests never wait for a rebuild: a copy older than FRESH is served as is while
+    # one background thread per chain refreshes it. The rebuild goes through Rails.cache, so the two processes share
+    # one build (1–3 s of queries) instead of each doing it. Only a process's very first request per chain waits.
+    FRESH = 10.seconds
+    Copy = Struct.new(:rows, :by_token, :at)
+    @copies = {}
+    @lock = Mutex.new # guards @copies/@refreshing bookkeeping
+    @first_load = Mutex.new # one cold build at a time per process
+    @refreshing = {}
+
+    class << self
+      def for(chain) = copy(chain).rows
+
+      def find(chain, token) = copy(chain).by_token[token.to_s.downcase]
+
+      # drop both layers for one chain (a creator just edited their token); this process rebuilds on the next read
+      def expire(chain_id)
+        Rails.cache.delete(cache_key(chain_id))
+        @lock.synchronize { @copies.delete(chain_id) }
+      end
+
+      private
+
+      def cache_key(chain_id) = "par/rows/#{chain_id}"
+
+      def shared(chain) = Rails.cache.fetch(cache_key(chain.id), expires_in: FRESH, race_condition_ttl: 5.seconds) { new(chain).build }
+
+      def load(chain)
+        rows = shared(chain)
+        Copy.new(rows, rows.index_by { _1[:token] }, Time.now)
+      end
+
+      def copy(chain)
+        return load(chain) if Rails.env.test? # no state carried between tests
+
+        c = @copies[chain.id] || @first_load.synchronize { @copies[chain.id] ||= load(chain) }
+        refresh_later(chain) if Time.now - c.at > FRESH
+        c
+      end
+
+      def refresh_later(chain)
+        @lock.synchronize do
+          return if @refreshing[chain.id]
+
+          @refreshing[chain.id] = true
+        end
+        Thread.new do
+          Rails.application.executor.wrap { @copies[chain.id] = load(chain) }
+        rescue => e
+          Rails.logger.error("[launch_rows] refresh #{chain.slug} failed: #{e.class}: #{e.message}")
+        ensure
+          @lock.synchronize { @refreshing.delete(chain.id) }
+        end
+      end
+    end
 
     # every enabled chain, or one chain when `slug` names it ("all"/blank = every chain)
     def self.across(slug = nil)
       chains = slug.blank? || slug == "all" ? Chains.enabled : [Chains.get(slug)]
       chains.flat_map { self.for(_1) }
     end
-
-    def self.find(chain, token) = self.for(chain).find { _1[:token] == token.downcase }
 
     def self.filter(rows, params)
       out = rows
