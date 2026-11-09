@@ -8,6 +8,9 @@ shared: &shared
   warm_stats:
     class: WarmStatsJob
     schedule: every 4 minutes
+  pin_logos:
+    class: PinLogosJob
+    schedule: every 5 minutes
 
 development:
   <<: *shared

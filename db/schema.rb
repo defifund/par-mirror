@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_09_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_10_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -93,6 +93,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_09_000000) do
     t.decimal "circulating", precision: 78, null: false
     t.index ["chain_id", "block_number", "log_index"], name: "index_floor_walls_on_chain_id_and_block_number_and_log_index", unique: true
     t.index ["chain_id", "token", "quote"], name: "index_floor_walls_on_chain_id_and_token_and_quote"
+  end
+
+  create_table "ipfs_pins", force: :cascade do |t|
+    t.string "cid", null: false
+    t.string "status", default: "pending", null: false
+    t.string "source"
+    t.bigint "bytes"
+    t.integer "attempts", default: 0, null: false
+    t.string "error"
+    t.datetime "pinned_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["cid"], name: "index_ipfs_pins_on_cid", unique: true
+    t.index ["status", "attempts"], name: "index_ipfs_pins_on_status_and_attempts"
   end
 
   create_table "launches", force: :cascade do |t|

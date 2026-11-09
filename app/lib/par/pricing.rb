@@ -2,9 +2,12 @@ module Par
   # Prices everything in the chain's reference asset (ETH on Robinhood Chain) and in USD via the
   # pricer's dollar anchor (USDG). Built once per request/cache window from a few bulk queries.
   class Pricing
+    # our own /ipfs/ route: pinned copies from the mirror's node, else a redirect to a public gateway
+    def self.ipfs_gateway = ENV["PAR_IPFS_GATEWAY"].presence || "/ipfs/"
+
     def self.http_url(uri)
       return nil if uri.blank?
-      return uri.sub("ipfs://", ENV.fetch("PAR_IPFS_GATEWAY", "https://ipfs.io/ipfs/")) if uri.start_with?("ipfs://")
+      return uri.sub("ipfs://", ipfs_gateway) if uri.start_with?("ipfs://")
       uri =~ %r{\Ahttps?://} ? uri : nil
     end
 

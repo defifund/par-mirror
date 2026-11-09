@@ -27,12 +27,15 @@ env:
   secret:
     - RAILS_MASTER_KEY
     - POSTGRES_PASSWORD
-    - PINATA_JWT            # optional: enables token image upload on /launch (leave empty to disable)
+    - PINATA_JWT            # optional fallback for uploads when PAR_IPFS_API is not set
   clear:
     RAILS_ENV: production
     APP_HOST: par.defi.club
     DB_HOST: par_mirror-db
     PAR_CHAINS: "4663,8453,5042"
+    PAR_IPFS_API: http://par_mirror-ipfs:5001            # the kubo accessory below (docker network only)
+    PAR_IPFS_LOCAL_GATEWAY: http://par_mirror-ipfs:8080
+    PAR_IPFS_GATEWAY: https://par.defi.club/ipfs/        # ipfs:// logos are served from our own node
     WEB_CONCURRENCY: 2
     JOB_CONCURRENCY: 1
     # PAR_RPC_URL_4663: https://...   # a private RPC makes syncing faster (default: public Robinhood RPC)
@@ -68,3 +71,23 @@ accessories:
         - POSTGRES_PASSWORD
     volumes:
       - /home/deploy/par_mirror_postgres_data:/var/lib/postgresql/data
+
+  # Our own IPFS node: keeps the original site's logos alive and pins new uploads.
+  # Only the swarm port (4001 tcp/udp) is public; RPC 5001 and gateway 8080 stay on the docker network.
+  ipfs:
+    image: ipfs/kubo:v0.36.0
+    host: deploy.tokyo
+    port: "4001:4001"
+    env:
+      clear:
+        IPFS_PROFILE: server,lowpower   # init only: no local-network scanning, DHT client, low resources
+        GOMEMLIMIT: 400MiB
+    files:
+      - config/ipfs/001-par-config.sh:/container-init.d/001-par-config.sh
+    volumes:
+      - /home/deploy/par_mirror_ipfs_data:/data/ipfs
+    options:
+      publish: "4001:4001/udp"
+      memory: 512m
+      memory-swap: 768m
+      cpus: 1

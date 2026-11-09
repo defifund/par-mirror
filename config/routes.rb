@@ -13,6 +13,7 @@ Rails.application.routes.draw do
   get "api/config", to: "pages#config_json"
   get "tokenlist.json", to: "api/indexer#tokenlist"
   post "api/upload", to: "uploads#create"
+  get "ipfs/:cid(/*path)", to: "ipfs#show", as: :ipfs, format: false
   get "api/stocks", to: "api/create_helpers#stocks"
   get "api/tokens", to: "api/create_helpers#tokens"
 

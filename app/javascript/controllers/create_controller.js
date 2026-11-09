@@ -163,7 +163,7 @@ export default class extends Controller {
 
   logoChanged() {
     const v = this.logoTarget.value.trim()
-    const url = v.startsWith("ipfs://") ? `https://ipfs.io/ipfs/${v.slice(7)}` : /^https:\/\//.test(v) ? v : null
+    const url = v.startsWith("ipfs://") ? `/ipfs/${v.slice(7)}` : /^https:\/\//.test(v) ? v : null
     if (url) { this.previewTarget.src = url; this.previewTarget.hidden = false }
   }
 
