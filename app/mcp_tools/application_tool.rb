@@ -22,7 +22,7 @@ class ApplicationTool < MCP::Tool
     # MCP SDK entry point; subclasses implement `payload` instead.
     def call(server_context: nil, **args)
       text_response(payload(**args))
-    rescue Par::Trading::Error => e
+    rescue Par::Trading::Error, Par::Launching::Error => e
       text_response(error: e.message)
     rescue Par::Rpc::Error => e
       text_response(error: "a public chain node did not answer (#{e.message}); try again in a minute")

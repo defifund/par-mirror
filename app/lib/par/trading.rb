@@ -43,15 +43,24 @@ module Par
 
     # reference -> quote (buy) and quote -> reference (sell) hops per market; nil for a market the pricer has
     # no route to (it then only trades in its own quote asset)
-    def routes
-      @routes ||= markets.map do |m|
-        next { buy: [], sell: [] } if reference?(m.pair)
+    def routes = @routes ||= markets.map { self.class.route(chain, rpc, _1.pair) }
 
-        hops, = rpc.call(chain.addr(:quote_pricer), "route(address)", m.pair, returns: [ "#{HOP}[]", "bool" ])
-        next nil if hops.empty?
+    # { buy: reference -> quote hops, sell: the reverse }; empty for the reference itself, nil without a route
+    def self.route(chain, rpc, pair)
+      return { buy: [], sell: [] } if [ chain.reference[:address].downcase, chain.reference[:wrapped].downcase ].include?(pair.downcase)
 
-        { buy: hops.reverse, sell: hops }
-      end
+      hops, = rpc.call(chain.addr(:quote_pricer), "route(address)", pair, returns: [ "#{HOP}[]", "bool" ])
+      hops.empty? ? nil : { buy: hops.reverse, sell: hops }
+    end
+
+    # equal slices of `amount` over `routes` (nil = unreachable), dust to the largest (par-sdk splitAmount/buildLegs)
+    def self.legs(routes, amount, side, indexes = routes.each_index.to_a)
+      reachable = indexes.each_index.select { routes[_1] }
+      return [] if reachable.empty?
+
+      parts = Array.new(reachable.size) { amount / reachable.size }
+      parts[parts.index(parts.max)] += amount - parts.sum
+      reachable.zip(parts).filter_map { |i, part| [ indexes[i], routes[i][side == "buy" ? :buy : :sell], part ] if part.positive? }
     end
 
     # The unsigned transaction. amount_in is raw units of the reference (buy) or of the token (sell).
@@ -141,17 +150,7 @@ module Par
       Mkt.new(index: m.idx, pair:, quote_symbol: m.quote_symbol, quote_decimals: m.quote_decimals, token_is_c0: m.token_is_c0, key:)
     end
 
-    # equal slices over the reachable markets, dust to the largest slice (par-sdk splitAmount/buildLegs)
-    def legs(amount, side)
-      reachable = markets.each_index.select { routes[_1] }
-      return [] if reachable.empty?
-
-      parts = Array.new(reachable.size) { amount / reachable.size }
-      parts[parts.index(parts.max)] += amount - parts.sum
-      reachable.zip(parts).filter_map do |i, part|
-        [ markets[i].index, routes[i][side == "buy" ? :buy : :sell], part ] if part.positive?
-      end
-    end
+    def legs(amount, side) = self.class.legs(routes, amount, side, markets.map(&:index))
 
     # OpenZeppelin ERC20 layout of the launch token: _balances at slot 0, _allowances at slot 1
     def balance_slot(owner) = "0x" + Abi.keccak(Abi.hex_bytes(Abi.encode(%w[address uint256], [ owner, 0 ])))

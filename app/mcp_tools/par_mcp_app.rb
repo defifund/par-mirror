@@ -13,7 +13,7 @@ class ParMcpApp
     GetTradesTool, GetCandlesTool, GetHoldersTool, GetPositionsTool,
     GetFeesTool, GetClaimableTool, GetBurnsTool, GetFloorTool,
     GetHolderPayoutsTool, GetRewardsTool, GetBuybacksTool, GetStatsTool,
-    QuoteTradeTool, BuildTradeTool
+    QuoteTradeTool, BuildTradeTool, BuildLaunchTool, BuildClaimFeesTool
   ].freeze
 
   INSTRUCTIONS = <<~TEXT.squish
@@ -22,7 +22,8 @@ class ParMcpApp
     contracts. Start with list_chains, find tokens with search_tokens, then drill in. Amounts named *Eth or *Usd are decimals
     (Eth = the chain's reference asset, USDC on Arc); other amounts are raw integer strings in the asset's smallest unit.
     To trade, call quote_trade, then build_trade with its quoteId within 60 seconds: you get unsigned transactions
-    (an exact approval when needed, then the trade with a minimum output) for your own wallet to sign and send. This server
+    (an exact approval when needed, then the trade with a minimum output) for your own wallet to sign and send.
+    build_launch and build_claim_fees prepare a launch and a creator's fee claims the same way. This server
     never signs, holds keys or broadcasts. Nothing here is investment advice.
   TEXT
 

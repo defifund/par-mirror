@@ -68,6 +68,15 @@ class McpTest < ActionDispatch::IntegrationTest
     assert_not tools["build_trade"]["annotations"]["destructiveHint"]
   end
 
+
+  test "launch and claim tools refuse bad input before touching the chain" do
+    wallet = "0x" + "11" * 20
+    err = call_tool("build_launch", chain: "rh", wallet:, name: "X", symbol: "X", fee_mode: "holders")["error"]
+    assert_match(/cannot be launched on this mirror now \(open: creator\)/, err)
+    assert_match(/not one of/, tool_text("build_launch", chain: "rh", wallet:, name: "X", symbol: "X", fee_mode: "moon"))
+    assert_match(/not the creator fee recipient/, call_tool("build_claim_fees", chain: "rh", wallet:)["note"])
+  end
+
   private
 
   def post_mcp(method, **params)
