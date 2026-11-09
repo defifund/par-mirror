@@ -40,7 +40,7 @@ export default class extends Controller {
     this.presetsTarget.innerHTML = this.sideName === "buy"
       ? ["0.001", "0.01", "0.05", "0.1"].map((v) => `<button class="chip" data-action="trade#preset" data-value="${v}">${v}</button>`).join("")
       : [25, 50, 100].map((p) => `<button class="chip" data-action="trade#preset" data-pct="${p}">${p}%</button>`).join("")
-    this.render()
+    this.quote() // the amount was cleared: drop the other side's quote too (it showed the buy quote under "Sell")
   }
 
   preset(e) {
