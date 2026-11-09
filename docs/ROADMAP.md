@@ -11,10 +11,11 @@ Status legend: [x] done · [~] in progress · [ ] to do · [!] blocked on the us
 5. [!] Decide: BNB Chain — first count the par launches there (archive says 29), then degraded mode or skip (§1)
 
 ## Known gaps / follow-ups
+- [ ] **Arc USD prices are ~10^12 too small** (found 2026-11-09 via the MCP): e.g. `long` shows market cap $4.92e-09 against 161K USDC volume, on the token page too. Likely the 6-decimal USDC reference vs 18-decimal tokens in the price scaling (`Par::Pricing` / `LaunchRows`)
 - [~] Arc history backfill: server cursor 24,341,806 of head 30,289,019 (2026-11-09); RH and Base are caught up
 - [ ] RH stock quick-pick is only as fresh as stocksonchain.io (data stops 2026-10-17): find a fresher list or read Robinhood's beacon directly
 - [~] Logo copies: 2,950 of 2,951 CIDs pinned on our node; 1 not found anywhere yet (`PinLogosJob` retries up to 6×)
-- [~] First R2 backup: 499 of 2,950 CARs uploaded at 2026-11-09 ~04:20 UTC; hourly job finishes the rest — check `ipfs_pins.backed_up_at`
+- [x] First R2 backup: all 2,950 CARs uploaded (2026-11-09); the hourly job keeps new pins backed up
 - [ ] Profiles: smart-contract wallets (Safe etc., ERC-1271) can't sign in yet — needs an on-chain `isValidSignature` call
 - [ ] `/events` SSE is capped at 1 stream per web process; if SDK users need more, move it off Puma (e.g. a separate small process)
 
@@ -50,6 +51,10 @@ Status legend: [x] done · [~] in progress · [ ] to do · [!] blocked on the us
 - [x] Profiles: Sign-In with Ethereum (EIP-4361, server-written message, signature recovered in plain Ruby, EOAs only), `/profile` name/bio/image/links shown next to addresses and on the portfolio; the deployer or creator-fee recipient can correct a token's description/image/links on the mirror (marked as edited)
 
 - [x] Languages (2026-11-09): English, 简体中文, 繁體中文 on every page except the archived Docs. Locale from a cookie (`/locale/:code`, header menu) or the browser's Accept-Language; Stimulus strings come from the `js.*` keys rendered into the page. Edit `config/locales/zh-CN.yml`, then `bin/i18n-zh-tw` regenerates zh-TW (OpenCC s2twp + term fixes); `bin/i18n-check` verifies every key exists in every locale
+
+## 4b. MCP for AI agents
+- [x] Read-only MCP server at `/mcp` (2026-11-09): official `mcp` gem 1.9, stateless Streamable HTTP, one class per tool in `app/mcp_tools/` (same layout as Pickful and smarts), per-IP rate limit, hosts follow `config.hosts`; `test/integration/mcp_test.rb`
+- [ ] Next: quotes and unsigned transactions (`quote_buy`/`quote_sell`, `build_trade_tx`, `build_launch_tx`, `build_claim_tx`) for agent wallets to sign; refuse to build a trade without a fresh quote (no `minOut = 0`)
 
 ## 5. Quality
 - [x] End-to-end test `test/e2e/fork_e2e.mjs`: launch (1 pair and 2 markets) → buy → sell → collectFees → claim native + claimToken, through the real routers on anvil forks of RH and Base (all pass). Use a fresh key: anvil's public test accounts carry EIP-7702 sweeper delegations on mainnet. Arc can't run on anvil (USDC precompile) → `arc_launch_sim.mjs` / `arc_trade_sim.mjs` simulate with eth_call on the real RPC: launch + USDC opening buy OK, quote + buy OK once approved

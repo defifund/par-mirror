@@ -27,6 +27,8 @@ Rails.application.routes.draw do
 
   # API compatible with the original public indexer (api.par.family / par.family/idx/<chainId>)
   get "idx/:chain/events", to: "api/events#index"
+  # public read-only MCP server for AI agents (app/mcp_tools)
+  mount ParMcpApp.new => "/mcp"
   scope "idx/:chain", controller: "api/indexer", defaults: { format: :json } do
     get "health"
     get "launches/count", action: :count
