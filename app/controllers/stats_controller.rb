@@ -32,7 +32,7 @@ class StatsController < ApplicationController
   # top 10 per board across the selected chains, in USD
   def self.leaders(chains, from, to)
     boards = chains.map do |c|
-      usd = Par::Pricing.new(c).ref_usd
+      usd = Par::Pricing.current(c).ref_usd
       Par::Queries.new(c).leaders(from, to).transform_values { |rows| rows.map { _1.merge(valueUsd: _1[:valueEth] * usd) } }
     end
     %i[volume fees payouts].to_h { |k| [k, boards.flat_map { _1[k] }.sort_by { -_1[:valueUsd] }.first(10)] }

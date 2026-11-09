@@ -5,7 +5,7 @@ class TokensController < ApplicationController
     q = Par::Queries.new(current_chain)
     @trades = q.trades(token: @row[:token], limit: 50, fill: :later)
     @holders = q.holders(@row[:token], limit: 50)
-    @ref_usd = Par::Pricing.new(current_chain).ref_usd
+    @ref_usd = Par::Pricing.current(current_chain).ref_usd
     payouts = Par::Payouts.new(current_chain)
     @distributions = payouts.distributions(@row[:token], limit: 100)
     @distributions = nil if @distributions[:rounds].zero? && @row[:feeMode] != "holders"

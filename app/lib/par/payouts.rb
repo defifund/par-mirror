@@ -3,7 +3,7 @@ module Par
   class Payouts
     def initialize(chain)
       @chain = chain
-      @pricing = Pricing.new(chain)
+      @pricing = Pricing.current(chain)
     end
 
     # { asset, symbol, decimals } for ETH (zero address), the launch token itself or a quote token

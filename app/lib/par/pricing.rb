@@ -19,6 +19,28 @@ module Par
       s.include?(".") ? s.sub(/0+\z/, "").delete_suffix(".") : s
     end
 
+    # One shared instance per chain and process for pages and the API, rebuilt at most every SHARED_TTL: building one
+    # reads every market of the chain (~50 ms and ~116k objects for Robinhood Chain), and a token page used to build
+    # three per request, which was most of its GC time. The indexer and LaunchRows#build still use a fresh `new`.
+    SHARED_TTL = 10
+    @shared = {}
+    @shared_lock = Mutex.new
+
+    def self.current(chain)
+      return new(chain) if Rails.env.test? # no state carried between tests
+
+      now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      at, pricing = @shared[chain.id]
+      return pricing if pricing && now - at < SHARED_TTL
+
+      @shared_lock.synchronize do
+        at, pricing = @shared[chain.id]
+        next pricing if pricing && now - at < SHARED_TTL
+
+        new(chain).tap { @shared[chain.id] = [ now, _1 ] }
+      end
+    end
+
     attr_reader :chain
 
     def initialize(chain)

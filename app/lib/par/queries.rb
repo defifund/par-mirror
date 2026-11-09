@@ -150,7 +150,7 @@ module Par
         Burn.where(chain_id: @chain.id, token: @chain.addr(:par), from_addr: @chain.addr(:buyback_wallet))
             .where(ts: start_day...(end_day + 86_400)).group(bday).sum(:amount).transform_values { _1.to_f / 1e18 }
       end
-      usd = Pricing.new(@chain).ref_usd
+      usd = Pricing.current(@chain).ref_usd
       payouts = payouts_by_day(start_day, end_day)
       rounds = Distribution.where(chain_id: @chain.id, ts: start_day...(end_day + 86_400)).group(Arel.sql("(ts / 86400) * 86400")).count
       axis = (start_day..end_day).step(86_400).to_a
@@ -212,7 +212,7 @@ module Par
         par = @chain.addr(:par) != Chains::ZERO ? r.find { _1[:token] == @chain.addr(:par) } : nil
         day = Arel.sql("(ts / 86400) * 86400")
         {
-          chainId: @chain.id, at: Time.now.to_i, refSymbol: @chain.reference[:symbol], refUsd: Pricing.new(@chain).ref_usd,
+          chainId: @chain.id, at: Time.now.to_i, refSymbol: @chain.reference[:symbol], refUsd: Pricing.current(@chain).ref_usd,
           launches: r.size, launches24h: r.count { _1[:createdAt].to_i > t24 }, launchesTraded: r.count { _1[:tradeCount].positive? },
           holders: holders.values.sum, tokensWithHolders: holders.size,
           holderWallets: Balance.where(chain_id: @chain.id).where("balance > 0").where.not(owner: system).distinct.count(:owner),
@@ -260,7 +260,7 @@ module Par
         p[0] / 10**p[1]
       else
         dec = QuoteAsset.where(chain_id: @chain.id, pair_token: asset).pick(:decimals) || 18
-        (@pricing ||= Pricing.new(@chain)).quote_eth(asset).to_f / 10**dec
+        (@pricing ||= Pricing.current(@chain)).quote_eth(asset).to_f / 10**dec
       end
     end
 
