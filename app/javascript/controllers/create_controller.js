@@ -23,7 +23,7 @@ const statusAbi = parseAbi([
 // Launch form: one pair -> PairPadRouter.launchAndBuyWithEth, 2..5 pairs -> PairPadMultiRouter.launchAndBuyWithEth.
 export default class extends Controller {
   static values = { chain: Object, modes: Array }
-  static targets = ["status", "name", "symbol", "logo", "description", "social", "custom", "pairs", "tax", "taxLabel", "feeLine", "devBuy", "launchFee", "startMcap", "submit", "msg",
+  static targets = ["pairsNote", "pairSection", "status", "name", "symbol", "logo", "description", "social", "custom", "pairs", "tax", "taxLabel", "feeLine", "devBuy", "launchFee", "startMcap", "submit", "msg",
                     "drop", "preview", "file", "stocksChip", "stocksPanel", "stocksFilter", "stocksList", "stocksNote", "results"]
 
   async connect() {
@@ -95,6 +95,22 @@ export default class extends Controller {
     this.pairsTarget.innerHTML = this.pairs.map((p, i) =>
       `<span class="tag">${p.symbol}${this.pairs.length > 1 ? ` <a href="#" data-action="create#removePair" data-index="${i}">×</a>` : ""}</span>`).join(" ")
     this.element.querySelectorAll("[data-action='create#togglePreset']").forEach((b) => b.classList.toggle("on", this.pairs.some((p) => p.address === b.dataset.address.toLowerCase())))
+    // say how many markets are left, right where the user is picking (not in the form's message box far below)
+    const n = this.pairs.length, full = n >= MAX_MARKETS
+    if (this.hasPairSectionTarget) this.pairSectionTarget.classList.toggle("pairs-full", full)
+    if (this.hasPairsNoteTarget) {
+      this.pairsNoteTarget.textContent = full ? `${MAX_MARKETS} of ${MAX_MARKETS} markets, the most a token can have. Remove one (×) to pick another.`
+        : n > 1 ? `${n} of ${MAX_MARKETS} markets` : ""
+      this.pairsNoteTarget.classList.toggle("full", full)
+    }
+    if (this.stocks) this.renderStocks()
+  }
+
+  // a click on a sixth pair: make the limit visible instead of doing nothing
+  flashFull() {
+    if (!this.hasPairsNoteTarget) return showMsg(this.msgTarget, false, `At most ${MAX_MARKETS} markets`)
+    const el = this.pairsNoteTarget
+    el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash")
   }
 
   removePair(e) {
@@ -122,7 +138,7 @@ export default class extends Controller {
     try {
       if (!/^0x[0-9a-f]{40}$/.test(addr)) throw new Error("Not an address")
       if (this.pairs.some((p) => p.address === addr)) return
-      if (this.pairs.length >= MAX_MARKETS) throw new Error(`At most ${MAX_MARKETS} markets`)
+      if (this.pairs.length >= MAX_MARKETS) return this.flashFull()
       if (addr !== zeroAddress && addr !== this.ci.reference.address.toLowerCase()) {
         const ok = await this.pc.readContract({ address: this.a.quotePricer, abi: quotePricerAbi, functionName: "isPriceable", args: [addr] })
         if (!ok) throw new Error("The on-chain pricer cannot price this asset (it needs a deep enough Uniswap route to ETH)")

@@ -237,3 +237,11 @@ a.named { font-family: inherit; font-weight: 600; }
 .profile-head { display: flex; gap: 14px; align-items: center; margin-bottom: 8px; }
 .profile-head h2 { margin: 0; }
 .profile-head .logo { border-radius: 50%; }
+
+/* create: market limit */
+.pairs-note { color: var(--muted); min-height: 1.2em; }
+.pairs-note.full { color: var(--warn); font-weight: 600; }
+.pairs-note.flash { animation: note-flash .9s ease-out; }
+@keyframes note-flash { 0%, 40% { background: color-mix(in srgb, var(--warn) 22%, transparent); } 100% { background: transparent; } }
+.pairs-full .chip:not(.on):not([data-action*="toggleStocks"]) { opacity: .4; }
+@media (prefers-reduced-motion: reduce) { .pairs-note.flash { animation: none; } }
