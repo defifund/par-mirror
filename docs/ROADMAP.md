@@ -3,15 +3,30 @@
 Goal (user, 2026-11-08): restore every feature the original site had, across all four chains.
 Status legend: [x] done · [~] in progress · [ ] to do · [!] blocked on the user
 
+## Next up (as of 2026-11-09)
+1. [ ] Anvil-fork end-to-end test on RH, Base **and Arc** (see §5) — none of the transaction flows has been run with real txs yet
+2. [ ] Verified quote lists per chain (§1)
+3. [ ] Dark-mode visual check (§5)
+4. [!] Decide: keeper wallet for `collectFees` / floor `rebalance` (§3) — who funds gas, where the key lives
+5. [!] Decide: BNB Chain — first count the par launches there (archive says 29), then degraded mode or skip (§1)
+
+## Known gaps / follow-ups
+- [~] Arc history backfill: server cursor 24,341,806 of head 30,289,019 (2026-11-09); RH and Base are caught up
+- [ ] RH stock quick-pick is only as fresh as stocksonchain.io (data stops 2026-10-17): find a fresher list or read Robinhood's beacon directly
+- [~] Logo copies: 2,950 of 2,951 CIDs pinned on our node; 1 not found anywhere yet (`PinLogosJob` retries up to 6×)
+- [~] First R2 backup: 499 of 2,950 CARs uploaded at 2026-11-09 ~04:20 UTC; hourly job finishes the rest — check `ipfs_pins.backed_up_at`
+- [ ] Profiles: smart-contract wallets (Safe etc., ERC-1271) can't sign in yet — needs an on-chain `isValidSignature` call
+- [ ] `/events` SSE is capped at 1 stream per web process; if SDK users need more, move it off Puma (e.g. a separate small process)
+
 ## 1. Multi-chain (original: one app for Robinhood Chain, Arc, Base, BNB Chain)
-- [~] Index Base (8453): public RPC base-rpc.publicnode.com, ≤10 addresses per getLogs → `max_addresses: 10`
-- [~] Index Arc (5042): public RPC rpc.mainnet.arc.io, log span 2k (20k-result cap), ≤20 addresses per getLogs; reference asset is USDC (ERC-20, 6 decimals, USD = 1)
-- [ ] Index BNB Chain (56): no keyed RPC (user has none) → degraded mode: seed the 29 archived launches, follow from the head via publicnode (≤10 addresses); history later via a free Etherscan V2 key if the user gets one
+- [x] Index Base (8453): public RPC base-rpc.publicnode.com, ≤10 addresses per getLogs → `max_addresses: 10` (caught up on the server 2026-11-09)
+- [~] Index Arc (5042): public RPC rpc.mainnet.arc.io, log span 2k (20k-result cap), ≤20 addresses per getLogs; reference asset is USDC (ERC-20, 6 decimals, USD = 1) — following the head, history still backfilling
+- [!] Index BNB Chain (56) — user decision after counting launches: no keyed RPC (user has none) → degraded mode: seed the 29 archived launches, follow from the head via publicnode (≤10 addresses); history later via a free Etherscan V2 key if the user gets one
 - [x] Chain switcher in the header; chain tabs on Explore (All / RH / ARC / BASE / BNB) like the original
 - [x] Explore "All" merges every enabled chain; rows carry their chain badge
 - [x] Token pages `/token/{rh,arc,base,bnb}/ADDRESS` per chain (route exists; views use `current_chain` from the URL)
 - [x] Stats per chain + "All chains" (USD totals)
-- [~] Trade/launch/claim on Arc: USDC reference → approvals, `*WithReference` router entry points
+- [~] Trade/launch/claim on Arc: USDC reference → approvals, `*WithReference` router entry points — code written (create: `launchAndBuyWithReference`; trade box: USDC approve), never run with a real tx → verify in the e2e test
 - [ ] Verified quote lists per chain (from the archive where it has rows)
 - [x] Portfolio across chains
 
@@ -23,8 +38,8 @@ Status legend: [x] done · [~] in progress · [ ] to do · [!] blocked on the us
 - [x] `/burns` in the par-sdk `FeeBurns` shape (burn-vault rounds only)
 
 ## 3. Keeper (permissionless upkeep the team's bots used to do)
-- [ ] `collectFees` for launches with meaningful pending fees (needs a funded keeper key — user decision)
-- [ ] FloorVault `rebalance`; BurnVault `burnToken` → then re-enable floor mode (`PAR_ALLOW_FLOOR_MODE=1`)
+- [!] `collectFees` for launches with meaningful pending fees (needs a funded keeper key — user decision)
+- [!] FloorVault `rebalance`; BurnVault `burnToken` → then re-enable floor mode (`PAR_ALLOW_FLOOR_MODE=1`)
 
 ## 4. Page features the original had
 - [x] Create: drag & drop / paste image with preview, "Stocks" quick pick (RH/Base/BNB via stocksonchain.io, Arc via longstocks.io, priceability from the on-chain pricer), token search by name/ticker/address (`/api/stocks`, `/api/tokens`)
@@ -35,7 +50,7 @@ Status legend: [x] done · [~] in progress · [ ] to do · [!] blocked on the us
 - [x] Profiles: Sign-In with Ethereum (EIP-4361, server-written message, signature recovered in plain Ruby, EOAs only), `/profile` name/bio/image/links shown next to addresses and on the portfolio; the deployer or creator-fee recipient can correct a token's description/image/links on the mirror (marked as edited)
 
 ## 5. Quality
-- [ ] Anvil-fork end-to-end test: launch → buy → sell → collect → claim through the real routers
+- [ ] Anvil-fork end-to-end test: launch → buy → sell → collect → claim through the real routers, on RH, Base and Arc (USDC approve + `*WithReference` path)
 - [ ] Dark-mode visual check
 
 ## Cannot be restored without the original team
