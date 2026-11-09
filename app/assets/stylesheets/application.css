@@ -177,7 +177,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .table-toggle .table { margin-top: 8px; }
 .table-toggle > div { max-height: 240px; overflow: auto; }
 @media (max-width: 640px) { .chart-grid { grid-template-columns: 1fr; } }
-.copied::after { content: " copied"; color: var(--up); }
+.copied::after { content: " " attr(data-copied-label); color: var(--up); }
 
 @media (max-width: 900px) {
   .badge { display: none; }
@@ -262,3 +262,16 @@ a.named { font-family: inherit; font-weight: 600; }
 .table-wrap > .table { min-width: 100%; }
 .row > .grow, .token-card .ellipsis { min-width: 0; }
 .table-wrap td, .table-wrap th { white-space: nowrap; }
+
+/* language switcher */
+.lang { position: relative; }
+.lang > summary { list-style: none; cursor: pointer; padding: 6px 10px; border-radius: 999px; font-weight: 700; font-size: 14px; color: var(--muted); border: 1px solid var(--border); }
+.lang > summary::-webkit-details-marker { display: none; }
+.lang[open] > summary, .lang > summary:hover { color: var(--text); background: var(--surface-2); }
+.lang-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; display: flex; flex-direction: column; min-width: 120px; padding: 6px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 8px 24px rgb(0 0 0 / .12); }
+.lang-menu a { padding: 8px 12px; border-radius: 8px; text-decoration: none; color: var(--text); white-space: nowrap; }
+.lang-menu a:hover { background: var(--surface-2); }
+.lang-menu a.on { font-weight: 700; }
+@media (max-width: 640px) { .header > .lang { margin-left: auto; } .header > .lang + .btn { margin-left: 0; } }
+/* CJK text can break between any two characters: keep table cells on one line (tables scroll inside their box) */
+.scroll > .table td, .scroll > .table th, .table-wrap td, .table-wrap th { white-space: nowrap; }

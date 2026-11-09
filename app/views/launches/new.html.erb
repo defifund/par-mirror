@@ -1,82 +1,82 @@
-<% content_for :title, "Create a token"; a = current_chain; ref = a.reference[:symbol] %>
+<% content_for :title, t("create.title"); a = current_chain; ref = a.reference[:symbol] %>
 <div class="narrow" data-controller="create" data-create-chain-value="<%= chain_payload %>" data-create-modes-value="<%= Par::FeeModes.launchable_keys.to_json %>">
-  <h1>Create a token</h1>
+  <h1><%= t("create.title") %></h1>
   <div class="tabs" style="margin-bottom:16px">
     <% Par::Chains.enabled.each do |c| %>
       <%= link_to c.name, new_launch_path(chain: c.slug), class: ("active" if c.id == a.id) %>
     <% end %>
   </div>
   <div class="msg err" data-create-target="status" hidden></div>
-  <p class="muted">Fixed supply of 1,000,000,000, all of it in a Uniswap v4 pool locked forever and tradable everywhere from the first block. Every token opens at the same market cap, <span data-create-target="startMcap">…</span>.</p>
+  <p class="muted"><%= t("create.lead_html", mcap: tag.span("…", data: { create_target: "startMcap" })) %></p>
 
   <section class="card stack">
-    <h3>01 · Your token</h3>
+    <h3>01 · <%= t("create.s1") %></h3>
     <div class="form">
-      <label><span class="lbl">Token name</span><input class="input" maxlength="32" data-create-target="name"></label>
-      <label><span class="lbl">Ticker</span><input class="input" maxlength="12" data-create-target="symbol"></label>
-      <div class="span2 dropzone" data-create-target="drop" data-upload="<%= @upload ? 1 : 0 %>" tabindex="0" role="button" aria-label="Add token image"
+      <label><span class="lbl"><%= t("create.name") %></span><input class="input" maxlength="32" data-create-target="name"></label>
+      <label><span class="lbl"><%= t("create.ticker") %></span><input class="input" maxlength="12" data-create-target="symbol"></label>
+      <div class="span2 dropzone" data-create-target="drop" data-upload="<%= @upload ? 1 : 0 %>" tabindex="0" role="button" aria-label="<%= t("create.add_image") %>"
            data-action="click->create#browse keydown.enter->create#browse dragover->create#dragOver dragleave->create#dragLeave drop->create#drop">
         <img class="drop-preview" alt="" data-create-target="preview" hidden>
         <div>
-          <b>Add token image</b>
-          <div class="small muted">Drop it here, click to browse or paste with Ctrl+V · PNG · JPG · GIF · WebP, ≤ 4 MB<%= " · upload is not configured on this mirror, use an image link below" unless @upload %></div>
+          <b><%= t("create.add_image") %></b>
+          <div class="small muted"><%= t("create.drop_hint") %><%= t("create.no_upload") unless @upload %></div>
         </div>
         <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden data-create-target="file" data-action="change->create#picked">
       </div>
-      <label class="span2"><span class="lbl">Image link <span class="hint">ipfs:// or https:// — filled in by the upload</span></span><input class="input" placeholder="ipfs://…" data-create-target="logo" data-action="change->create#logoChanged"></label>
-      <label class="span2"><span class="lbl">Description <span class="hint">optional</span></span><textarea class="input" rows="3" data-create-target="description"></textarea></label>
+      <label class="span2"><span class="lbl"><%= t("create.image_link") %> <span class="hint"><%= t("create.image_link_hint") %></span></span><input class="input" placeholder="ipfs://…" data-create-target="logo" data-action="change->create#logoChanged"></label>
+      <label class="span2"><span class="lbl"><%= t("create.description") %> <span class="hint"><%= t("create.optional") %></span></span><textarea class="input" rows="3" data-create-target="description"></textarea></label>
       <% %w[website twitter telegram discord farcaster].each do |k| %>
-        <label><span class="lbl"><%= k == "twitter" ? "X / Twitter" : k.capitalize %> <span class="hint">optional, full URL</span></span><input class="input" placeholder="https://" data-create-target="social" data-key="<%= k %>"></label>
+        <label><span class="lbl"><%= k == "twitter" ? "X / Twitter" : t("create.social.#{k}") %> <span class="hint"><%= t("create.optional_url") %></span></span><input class="input" placeholder="https://" data-create-target="social" data-key="<%= k %>"></label>
       <% end %>
     </div>
   </section>
 
   <section class="card stack" data-create-target="pairSection">
-    <h3>02 · Pick a pair</h3>
-    <p class="small muted">Same starting market cap whichever you choose. Two to five pairs make a multi-market token, one pool per asset.</p>
+    <h3>02 · <%= t("create.s2") %></h3>
+    <p class="small muted"><%= t("create.pair_lead") %></p>
     <div class="row gap wrap">
       <button class="chip on" data-action="create#togglePreset" data-address="<%= a.reference[:address].downcase %>" data-symbol="<%= ref %>" data-decimals="<%= a.reference[:decimals] %>"><%= ref %></button>
       <button class="chip" data-action="create#togglePreset" data-address="<%= a.addr(:usdg) %>" data-symbol="<%= { 4663 => "USDG", 8453 => "USDC", 5042 => "EURC", 56 => "USDT" }[a.id] %>" data-decimals="<%= a.id == 56 ? 18 : 6 %>"><%= { 4663 => "USDG", 8453 => "USDC", 5042 => "EURC", 56 => "USDT" }[a.id] %></button>
       <% if a.addr(:par) != Par::Chains::ZERO %><button class="chip" data-action="create#togglePreset" data-address="<%= a.addr(:par) %>" data-symbol="par" data-decimals="18">par</button><% end %>
-      <% if Par::Stocks::SOURCES[a.id] %><button class="chip" data-action="create#toggleStocks" data-create-target="stocksChip">Stocks <span class="muted small">tokenized stocks &amp; ETFs</span></button><% end %>
+      <% if Par::Stocks::SOURCES[a.id] %><button class="chip" data-action="create#toggleStocks" data-create-target="stocksChip"><%= t("create.stocks") %> <span class="muted small"><%= t("create.stocks_hint") %></span></button><% end %>
     </div>
     <div class="stock-panel" data-create-target="stocksPanel" hidden>
-      <input class="input" placeholder="Filter stocks by ticker or company" data-create-target="stocksFilter" data-action="input->create#renderStocks">
-      <div class="stock-grid" data-create-target="stocksList"><span class="muted small">Loading…</span></div>
+      <input class="input" placeholder="<%= t("create.stocks_filter") %>" data-create-target="stocksFilter" data-action="input->create#renderStocks">
+      <div class="stock-grid" data-create-target="stocksList"><span class="muted small"><%= t("common.loading") %></span></div>
       <p class="small muted" data-create-target="stocksNote"></p>
     </div>
     <div class="search-box">
-      <input class="input" placeholder="Any token: search by name or ticker, or paste a contract address" autocomplete="off"
+      <input class="input" placeholder="<%= t("create.any_token") %>" autocomplete="off"
              data-create-target="custom" data-action="input->create#search keydown.enter->create#addCustom focus->create#search">
       <div class="search-results" data-create-target="results" hidden></div>
     </div>
-    <div class="small row gap wrap"><span class="muted">Markets</span><span data-create-target="pairs"></span></div>
+    <div class="small row gap wrap"><span class="muted"><%= t("create.markets") %></span><span data-create-target="pairs"></span></div>
     <div class="small pairs-note" data-create-target="pairsNote" aria-live="polite"></div>
   </section>
 
   <section class="card stack">
-    <h3>03 · Fees</h3>
+    <h3>03 · <%= t("fees.title") %></h3>
     <div class="radio">
       <% Par::FeeModes.all.each do |m| %>
         <label class="opt <%= 'on' if m.key == 'creator' %> <%= 'disabled' unless m.launchable %>" title="<%= m.launch_note %>">
           <input type="radio" name="mode" value="<%= m.key %>" <%= "checked" if m.key == "creator" %> <%= "disabled" unless m.launchable %> data-action="create#mode">
-          <b><%= m.title %><%= " · unavailable" unless m.launchable %></b>
+          <b><%= m.title %><%= t("create.unavailable") unless m.launchable %></b>
           <span class="small muted"><%= m.launchable ? m.blurb : m.launch_note %></span>
         </label>
       <% end %>
     </div>
-    <label><span class="lbl">Creator tax <b data-create-target="taxLabel">0.0%</b></span>
+    <label><span class="lbl"><%= t("create.tax") %> <b data-create-target="taxLabel">0.0%</b></span>
       <input type="range" min="0" max="1000" step="50" value="0" data-create-target="tax" data-action="input->create#tax">
     </label>
     <p class="small muted" data-create-target="feeLine">…</p>
   </section>
 
   <section class="card stack">
-    <h3>04 · Launch</h3>
-    <label><span class="lbl">Opening buy in <%= ref %> <span class="hint">optional; lands in the launch transaction so nobody can get in front of it</span></span><input class="input" inputmode="decimal" placeholder="0" data-create-target="devBuy">
+    <h3>04 · <%= t("create.s4") %></h3>
+    <label><span class="lbl"><%= t("create.dev_buy", ref:) %> <span class="hint"><%= t("create.dev_buy_hint") %></span></span><input class="input" inputmode="decimal" placeholder="0" data-create-target="devBuy">
     </label>
-    <p class="small muted">Launch fee: <span data-create-target="launchFee">…</span> <%= ref %>. Your wallet signs one transaction to the router; the metadata is written on-chain and cannot be changed later.</p>
-    <button class="btn primary wide" data-action="create#launch" data-create-target="submit">Launch</button>
+    <p class="small muted"><%= t("create.fee_line_html", fee: tag.span("…", data: { create_target: "launchFee" }), ref:) %></p>
+    <button class="btn primary wide" data-action="create#launch" data-create-target="submit"><%= t("js.create.launch") %></button>
     <div class="msg" data-create-target="msg" hidden></div>
   </section>
 </div>

@@ -1,16 +1,16 @@
 <% ref = current_chain.reference[:symbol] %>
 <div class="card stack" data-controller="fees" data-fees-chain-value="<%= chain_payload %>" data-fees-token-value="<%= r[:token] %>" data-fees-kind-value="<%= r[:kind] %>"
      data-fees-url-value="/idx/<%= current_chain.id %>/fees?token=<%= r[:token] %>" data-fees-markets-value="<%= (r[:markets] || [r]).map { { pairToken: _1[:pairToken], quoteSymbol: _1[:quoteSymbol], quoteDecimals: _1[:quoteDecimals] } }.to_json %>" data-fees-symbol-value="<%= r[:symbol] %>">
-  <h3>Fees</h3>
+  <h3><%= t("fees.title") %></h3>
   <p class="small muted">
-    Pool fee <%= r[:poolFee] / 10_000.0 %>% (<%= r[:baseFeeBps] / 100.0 %>% base, <%= r[:protocolFeeShareBps] / 100 %>% of it to the protocol; creator tax <%= r[:creatorTaxBps] / 100.0 %>%).
-    The creator share goes to <b><%= { "creator" => "the creator", "holders" => "holders (paid hourly)", "burn" => "buyback & burn", "floor" => "a rising price floor" }[r[:feeMode]] %></b>.
+    <%= t("fees.split", pool: r[:poolFee] / 10_000.0, base: r[:baseFeeBps] / 100.0, share: r[:protocolFeeShareBps] / 100, tax: r[:creatorTaxBps] / 100.0) %>
+    <%= t("fees.goes_to_html", to: tag.b(t("fees.to.#{r[:feeMode]}", default: r[:feeMode].to_s))) %>
   </p>
   <table class="table small"><tbody>
-    <tr><td class="muted">Fee recipient</td><td><%= explorer(current_chain, "address", r[:creatorFeeRecipient]) %></td></tr>
-    <tr><td class="muted">Creator earned (collected)</td><td><%= compact(r[:creatorFeesEth]) %> <%= ref %> · <%= usd(r[:creatorFeesUsd]) %></td></tr>
-    <tr><td class="muted">Uncollected</td><td data-fees-target="pending">…</td></tr>
+    <tr><td class="muted"><%= t("fees.recipient") %></td><td><%= explorer(current_chain, "address", r[:creatorFeeRecipient]) %></td></tr>
+    <tr><td class="muted"><%= t("fees.earned") %></td><td><%= compact(r[:creatorFeesEth]) %> <%= ref %> · <%= usd(r[:creatorFeesUsd]) %></td></tr>
+    <tr><td class="muted"><%= t("fees.uncollected") %></td><td data-fees-target="pending">…</td></tr>
   </tbody></table>
-  <button class="btn" data-action="fees#collect" data-fees-target="button">Collect fees (anyone can)</button>
+  <button class="btn" data-action="fees#collect" data-fees-target="button"><%= t("js.fees.collect") %></button>
   <div class="msg small" data-fees-target="msg" hidden></div>
 </div>

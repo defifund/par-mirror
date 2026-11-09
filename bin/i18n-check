@@ -1,0 +1,17 @@
+#!/usr/bin/env ruby
+# Checks that every t("…") key used in views/helpers/lib and the Stimulus controllers exists in every locale.
+Dir.chdir(File.expand_path("..", __dir__))
+require "yaml"
+locales = %w[en zh-CN zh-TW].select { File.exist?("config/locales/#{_1}.yml") }
+flat = ->(h, pre = nil) { h.flat_map { |k, v| key = [pre, k].compact.join("."); v.is_a?(Hash) ? flat.(v, key) : [key] } }
+dicts = locales.to_h { |l| [l, flat.(YAML.load_file("config/locales/#{l}.yml")[l]).to_set] }
+used = []
+Dir["app/{views,helpers,lib,controllers,models}/**/*.{erb,rb}"].each { |f| File.read(f).scan(/\bt\(\s*"([a-z0-9_.]+)"/) { used << [$1, f] } }
+Dir["app/javascript/{controllers,par}/*.js"].each { |f| File.read(f).scan(/\bt\(\s*["`]([a-z0-9_.]+)["`]/) { used << ["js.#{$1}", f] } }
+Dir["app/lib/par/fee_modes.rb"].each { |f| File.read(f).scan(/t\.\("([a-z0-9_.]+)"\)/) { used << ["fee_modes.#{$1}", f] } }
+missing = used.uniq.reject { |k, _| k == "js" || dicts.values.all? { _1.include?(k) } }
+puts "keys used: #{used.map(&:first).uniq.size} · locales: #{locales.join(', ')}"
+missing.each { |k, f| puts "MISSING #{k}  (#{f})  in #{dicts.reject { |_, d| d.include?(k) }.keys.join(', ')}" }
+others = dicts.keys - ["en"]
+others.each { |l| (dicts["en"] - dicts[l]).each { puts "#{l} lacks #{_1}" } }
+puts "ok" if missing.empty? && others.all? { (dicts["en"] - dicts[_1]).empty? }

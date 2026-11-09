@@ -1,6 +1,7 @@
 // Browser wallet (EIP-1193) + viem clients. Signing only ever happens in the user's wallet.
 import { createPublicClient, createWalletClient, custom, http } from "viem"
 import { getChain } from "par-sdk"
+import { t } from "./i18n"
 
 const eth = () => window.ethereum
 const state = { address: null, chainId: null }
@@ -18,7 +19,7 @@ if (eth()) {
 }
 
 export async function connect() {
-  if (!eth()) throw new Error("No browser wallet found. Install MetaMask, Rabby or another EIP-1193 wallet.")
+  if (!eth()) throw new Error(t("wallet.no_wallet"))
   const a = await eth().request({ method: "eth_requestAccounts" })
   state.address = a[0]?.toLowerCase() ?? null
   state.chainId = Number(await eth().request({ method: "eth_chainId" }))
@@ -60,7 +61,7 @@ export async function sendTx(ci, tx) {
   const wc = createWalletClient({ chain: viemChain(ci), transport: custom(eth()), account: state.address })
   const hash = await wc.sendTransaction({ account: state.address, chain: viemChain(ci), to: tx.to, data: tx.data, value: tx.value })
   const receipt = await pc.waitForTransactionReceipt({ hash })
-  if (receipt.status !== "success") throw new Error(`transaction reverted: ${hash}`)
+  if (receipt.status !== "success") throw new Error(t("wallet.reverted", { hash }))
   return receipt
 }
 

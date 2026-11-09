@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { t } from "../par/i18n"
 import { formatUnits, parseUnits } from "viem"
 import { getLaunch, getEthRoutes, quoteBuyWithEth, quoteSellToEth, buildBuyWithEth, buildSellToEth, buildApprove, withSlippage, erc20Abi } from "par-sdk"
 import { publicClient, sendTx, onWallet, walletState, errMsg, compact, short, units, showMsg } from "../par/wallet"
@@ -20,11 +21,11 @@ export default class extends Controller {
       this.launch = await getLaunch(this.pc, this.tokenValue, this.ci.id)
       this.routes = await getEthRoutes(this.pc, this.launch, this.ci.id)
       if (this.routes.every((r) => r === null)) {
-        this.submitTarget.textContent = `No ${this.ref.symbol} route`
+        this.submitTarget.textContent = t("trade.no_route", { ref: this.ref.symbol })
         return
       }
       this.render()
-    } catch (e) { showMsg(this.msgTarget, false, "Could not read the pool: " + errMsg(e)) }
+    } catch (e) { showMsg(this.msgTarget, false, t("trade.pool_error", { error: errMsg(e) })) }
   }
   disconnect() { this.off?.() }
 
@@ -73,9 +74,9 @@ export default class extends Controller {
   render() {
     const buy = this.sideName === "buy"
     this.payUnitTarget.textContent = buy ? this.ref.symbol : this.symbolValue
-    this.balanceTarget.textContent = walletState().address ? ` balance ${compact(units(buy ? this.bal.ref : this.bal.token, this.decIn))}` : ""
+    this.balanceTarget.textContent = walletState().address ? " " + t("trade.balance", { amount: compact(units(buy ? this.bal.ref : this.bal.token, this.decIn)) }) : ""
     const approving = buy && this.needsApproval
-    this.submitTarget.textContent = approving ? `Approve ${this.ref.symbol}` : `${buy ? "Buy" : "Sell"} ${this.symbolValue}`
+    this.submitTarget.textContent = approving ? t("trade.approve", { symbol: this.ref.symbol }) : t(buy ? "trade.buy" : "trade.sell", { symbol: this.symbolValue })
     this.submitTarget.classList.toggle("primary", buy)
     this.submitTarget.classList.toggle("danger", !buy)
     // never trade without a fresh quote: the quote is what sets the minimum received (slippage protection)
@@ -96,10 +97,10 @@ export default class extends Controller {
         // ERC-20 reference (USDC on Arc): the router pulls the input from an allowance that a simulation cannot fake,
         // so a buy can only be quoted from a wallet that has approved the router — approve first, then quote
         if (this.sideName === "buy" && !this.ref.native) {
-          if (!owner) { this.outTarget.textContent = `Connect a wallet to quote`; return }
+          if (!owner) { this.outTarget.textContent = t("trade.connect_to_quote"); return }
           const al = await this.pc.readContract({ address: this.ref.address, abi: erc20Abi, functionName: "allowance", args: [owner, this.launch.router] })
           if (raw !== this.raw) return
-          if (al < raw) { this.needsApproval = true; this.outTarget.textContent = `Approve ${this.ref.symbol} to see the quote`; this.render(); return }
+          if (al < raw) { this.needsApproval = true; this.outTarget.textContent = t("trade.approve_to_quote", { symbol: this.ref.symbol }); this.render(); return }
         }
         const q = this.sideName === "buy"
           ? await quoteBuyWithEth(this.pc, this.launch, this.routes, raw, undefined, this.ci.id, owner)
@@ -108,7 +109,7 @@ export default class extends Controller {
         this.quoted = q
         this.outTarget.textContent = `${compact(units(q, this.decOut))} ${this.sideName === "buy" ? this.symbolValue : this.ref.symbol}`
         this.render()
-      } catch (e) { showMsg(this.msgTarget, false, "Quote failed: " + errMsg(e)); this.render() }
+      } catch (e) { showMsg(this.msgTarget, false, t("trade.quote_failed", { error: errMsg(e) })); this.render() }
     }, 300)
   }
 
@@ -120,28 +121,28 @@ export default class extends Controller {
     btn.disabled = true
     try {
       const { address } = walletState()
-      if (!address) throw new Error("Connect a wallet first")
+      if (!address) throw new Error(t("wallet.connect_first"))
       const router = this.launch.router
       if (this.sideName === "buy" && this.needsApproval) {
-        btn.textContent = `Approving ${this.ref.symbol}…`
+        btn.textContent = t("trade.approving_symbol", { symbol: this.ref.symbol })
         await sendTx(this.ci, buildApprove(this.ref.address, router))
-        showMsg(this.msgTarget, true, `${this.ref.symbol} approved. Check the quote, then confirm the buy.`)
+        showMsg(this.msgTarget, true, t("trade.approved", { symbol: this.ref.symbol }))
         this.quote()
         return
       }
-      if (this.quoted == null) throw new Error("No quote yet: wait for the quote before trading")
+      if (this.quoted == null) throw new Error(t("trade.no_quote"))
       const min = withSlippage(this.quoted, this.slip)
       let receipt
       if (this.sideName === "buy") {
         if (!this.ref.native) await this.approveIfNeeded(this.ref.address, router, raw, address)
-        btn.textContent = "Buying…"
+        btn.textContent = t("trade.buying")
         receipt = await sendTx(this.ci, buildBuyWithEth(this.launch, this.routes, raw, min, address, undefined, this.ci.id))
       } else {
         await this.approveIfNeeded(this.tokenValue, router, raw, address)
-        btn.textContent = "Selling…"
+        btn.textContent = t("trade.selling")
         receipt = await sendTx(this.ci, buildSellToEth(this.launch, this.routes, raw, min, address, undefined, this.ci.id))
       }
-      showMsg(this.msgTarget, true, `Done. Tx ${short(receipt.transactionHash)} — the tape updates once the indexer sees the block.`)
+      showMsg(this.msgTarget, true, t("trade.done", { tx: short(receipt.transactionHash) }))
       this.amountTarget.value = ""
       this.refreshBalances()
     } catch (e) {
@@ -154,7 +155,7 @@ export default class extends Controller {
   async approveIfNeeded(asset, spender, amount, owner) {
     const allowance = await this.pc.readContract({ address: asset, abi: erc20Abi, functionName: "allowance", args: [owner, spender] })
     if (allowance >= amount) return
-    this.submitTarget.textContent = "Approving…"
+    this.submitTarget.textContent = t("trade.approving")
     await sendTx(this.ci, buildApprove(asset, spender))
   }
 }

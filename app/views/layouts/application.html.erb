@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<%= I18n.locale %>">
   <head>
-    <title><%= content_for(:title).presence ? "#{content_for(:title)} · par mirror" : "par · community mirror" %></title>
+    <title><%= content_for(:title).presence ? "#{content_for(:title)} · #{t('layout.title_suffix')}" : t("layout.title") %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="description" content="Community mirror of par: explore, trade and launch par tokens on Robinhood Chain from the open-source contracts.">
+    <meta name="description" content="<%= t('layout.description') %>">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
     <%= yield :head %>
@@ -15,17 +15,25 @@
     <header class="header">
       <%= link_to root_path, class: "brand" do %>
         <svg width="28" height="28" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="24" fill="var(--logo-bg)"/><g transform="rotate(-10 50 50)" fill="var(--logo-fg)"><rect x="16" y="26" width="68" height="19" rx="9.5"/><rect x="16" y="55" width="68" height="19" rx="9.5"/></g></svg>
-        <span>par</span><span class="badge">community mirror</span>
+        <span>par</span><span class="badge"><%= t("layout.badge") %></span>
       <% end %>
       <nav>
-        <%= link_to "Explore", root_path, class: ("active" if current_page?(root_path)) %>
-        <%= link_to "Create", new_launch_path, class: ("active" if current_page?(new_launch_path)) %>
-        <%= link_to "Portfolio", portfolio_path, class: ("active" if request.path == portfolio_path) %>
-        <%= link_to "Stats", stats_path, class: ("active" if current_page?(stats_path)) %>
-        <%= link_to "Profile", profile_path, class: ("active" if current_page?(profile_path)) %>
-        <%= link_to "Docs", docs_path, target: "_blank" %>
+        <%= link_to t("nav.explore"), root_path, class: ("active" if current_page?(root_path)) %>
+        <%= link_to t("nav.create"), new_launch_path, class: ("active" if current_page?(new_launch_path)) %>
+        <%= link_to t("nav.portfolio"), portfolio_path, class: ("active" if request.path == portfolio_path) %>
+        <%= link_to t("nav.stats"), stats_path, class: ("active" if current_page?(stats_path)) %>
+        <%= link_to t("nav.profile"), profile_path, class: ("active" if current_page?(profile_path)) %>
+        <%= link_to t("nav.docs"), docs_path, target: "_blank", title: t("nav.docs_title") %>
       </nav>
-      <button class="btn" data-action="wallet#login" data-wallet-target="button">Connect</button>
+      <details class="lang">
+        <summary aria-label="<%= t('layout.language') %>"><%= { en: "EN", "zh-CN": "简", "zh-TW": "繁" }[I18n.locale] %></summary>
+        <div class="lang-menu">
+          <% { "en" => "English", "zh-CN" => "简体中文", "zh-TW" => "繁體中文" }.each do |code, label| %>
+            <%= link_to label, locale_path(code), class: ("on" if I18n.locale.to_s == code), data: { turbo: false }, lang: code %>
+          <% end %>
+        </div>
+      </details>
+      <button class="btn" data-action="wallet#login" data-wallet-target="button"><%= t("js.wallet.connect") %></button>
     </header>
     <main class="page">
       <% if notice %><div class="msg ok"><%= notice %></div><% end %>
@@ -33,8 +41,9 @@
       <%= yield %>
     </main>
     <footer class="footer">
-      <p><b>Community mirror of par.</b> Rebuilt from the open-source contracts and SDK after par.family went offline. It reads the same contracts on Robinhood Chain and sends transactions only from your own wallet. It is not operated by the original team and holds no admin keys or protocol fees.</p>
-      <p class="muted">Risk notice: transactions are irreversible; tokens can lose all value. Nothing here is financial advice. The contracts are unaudited.</p>
+      <p><b><%= t("layout.footer_title") %></b> <%= t("layout.footer_body") %></p>
+      <p class="muted"><%= t("layout.risk") %></p>
     </footer>
+    <script type="application/json" id="i18n-js"><%= json_escape(t("js").to_json).html_safe %></script>
   </body>
 </html>

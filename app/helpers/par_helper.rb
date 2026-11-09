@@ -30,10 +30,10 @@ module ParHelper
   def ago(ts)
     return "—" if ts.blank?
     s = Time.now.to_i - ts.to_i
-    return "#{s}s" if s < 60
-    return "#{s / 60}m" if s < 3600
-    return "#{s / 3600}h" if s < 86_400
-    "#{s / 86_400}d"
+    return t("time.s", n: s) if s < 60
+    return t("time.m", n: s / 60) if s < 3600
+    return t("time.h", n: s / 3600) if s < 86_400
+    t("time.d", n: s / 86_400)
   end
 
   # an address as a link to the explorer, labelled with its wallet-signed profile name when it has one
@@ -46,8 +46,7 @@ module ParHelper
 
   def explorer(chain, kind, id, label = nil) = link_to(label || short(id), "#{chain.explorer}/#{kind}/#{id}", target: "_blank", rel: "noopener")
 
-  FEE_MODE_LABEL = { "holders" => "fees → holders", "burn" => "buyback & burn", "floor" => "floor" }.freeze
-  def fee_mode_tag(mode) = FEE_MODE_LABEL[mode] && tag.span(FEE_MODE_LABEL[mode], class: "tag")
+  def fee_mode_tag(mode) = (tag.span(t("fee_mode_tag.#{mode}"), class: "tag") if %w[holders burn floor].include?(mode))
 
   def token_logo(row, size: 36)
     if row[:logoUrl]

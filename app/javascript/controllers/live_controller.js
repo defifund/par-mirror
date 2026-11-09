@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { t } from "../par/i18n"
 
 // Keeps a page current while history keeps being indexed, without holding a server connection:
 // polls the cheap /idx/<chain>/pulse endpoint every few seconds (paused while the tab is hidden).
@@ -53,14 +54,14 @@ export default class extends Controller {
   state(s) {
     if (!this.hasDotTarget) return
     this.dotTarget.dataset.state = s
-    this.dotTarget.textContent = s
+    this.dotTarget.textContent = t(`live.${s}`)
   }
 
   showBanner() {
     if (!this.newLaunches && !this.newTrades) return
     const parts = []
-    if (this.newLaunches) parts.push(`${this.newLaunches} new token${this.newLaunches > 1 ? "s" : ""} launched`)
-    if (this.newTrades) parts.push(`${this.newTrades} new trade${this.newTrades > 1 ? "s" : ""}`)
+    if (this.newLaunches) parts.push(t(this.newLaunches > 1 ? "live.launches" : "live.launch", { n: this.newLaunches }))
+    if (this.newTrades) parts.push(t(this.newTrades > 1 ? "live.trades" : "live.trade", { n: this.newTrades }))
     this.bannerTextTarget.textContent = parts.join(" · ")
     this.bannerTarget.hidden = false
   }

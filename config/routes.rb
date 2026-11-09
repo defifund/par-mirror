@@ -1,5 +1,6 @@
 Rails.application.routes.draw do
   get "up" => "rails/health#show", as: :rails_health_check
+  get "locale/:code", to: "locales#update", as: :locale, constraints: { code: /en|zh-CN|zh-TW/ }
 
   root "explore#index"
   get "token/:chain/:token", to: "tokens#show", as: :token, constraints: { token: /0x\h{40}/ }

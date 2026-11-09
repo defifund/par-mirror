@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { t } from "../par/i18n"
 import { onWallet } from "../par/wallet"
 
 // "You received …" line on a holders-mode token page, for the connected wallet.
@@ -16,10 +17,10 @@ export default class extends Controller {
     try {
       const res = await fetch(`${this.urlValue}&owner=${address}`)
       const j = await res.json()
-      const parts = (j.totals || []).map((t) => `${fmt(Number(BigInt(t.total)) / 10 ** t.decimals)} ${t.symbol}`)
+      const parts = (j.totals || []).map((tot) => `${fmt(Number(BigInt(tot.total)) / 10 ** tot.decimals)} ${tot.symbol}`)
       this.mineTarget.textContent = parts.length
-        ? `Your wallet received ${parts.join(" + ")} over ${j.items.length}${j.items.length >= 500 ? "+" : ""} payouts.`
-        : "Your wallet has not received a payout for this token."
+        ? t("rewards.received", { amounts: parts.join(" + "), n: `${j.items.length}${j.items.length >= 500 ? "+" : ""}` })
+        : t("rewards.none")
       this.mineTarget.hidden = false
     } catch {
       this.mineTarget.hidden = true

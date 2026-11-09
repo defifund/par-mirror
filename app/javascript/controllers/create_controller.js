@@ -10,6 +10,7 @@ const routerAbi = parseAbi([
   "struct Hop { PoolKey key; bool v3; }",
   "function launchAndBuyWithEth(TokenParams params, uint256 launchConfigId, address pairToken, Hop[] leg, uint256 minTokensOut) payable returns (address token, bytes32 poolId, uint256 tokensOut)",
 ])
+import { t } from "../par/i18n"
 import { publicClient, sendTx, walletState, onWallet, errMsg, compact, short, units, showMsg } from "../par/wallet"
 
 const MAX_MARKETS = 5
@@ -40,9 +41,9 @@ export default class extends Controller {
       this.econ = { launchFee, multiLaunchFee, maxTax: Number(maxTax), baseFee: Number(baseFee), share: Number(share) }
       this.taxTarget.max = String(this.econ.maxTax)
       this.launchFeeTarget.textContent = compact(units(launchFee))
-      this.startMcapTarget.textContent = `a phantom reserve of ${compact(units(phantom))} ${this.ci.reference.symbol}`
+      this.startMcapTarget.textContent = t("create.phantom", { amount: compact(units(phantom)), ref: this.ci.reference.symbol })
       this.tax()
-    } catch (e) { showMsg(this.msgTarget, false, "Could not read factory terms: " + errMsg(e)) }
+    } catch (e) { showMsg(this.msgTarget, false, t("create.terms_error", { error: errMsg(e) })) }
     this.offWallet = onWallet(() => this.checkStatus())
     // paste an image anywhere on the page (not into a text field) to use it as the token image
     this.onPaste = (e) => {
@@ -68,9 +69,9 @@ export default class extends Controller {
       const { address } = walletState()
       const [mayS, mayM] = address ? await Promise.all([read(this.a.factory, "canLaunch", [address]), read(this.a.multiFactory, "canLaunch", [address])]) : [true, true]
       this.open = { single: single && mayS, multi: multi && mayM }
-      this.closedReason = !single && !multi ? "Launching has been closed on both par factories by their owner (the original team). Existing tokens keep trading; new launches need a factory this mirror deploys itself."
-        : (single && multi) ? (mayS && mayM ? null : "The factories are restricted to whitelisted wallets right now, and this wallet is not on the list.")
-        : `Launching is closed on the ${single ? "multi" : "single"}-market factory; ${single ? "use one pair" : "use two or more pairs"}.`
+      this.closedReason = !single && !multi ? t("create.closed_both")
+        : (single && multi) ? (mayS && mayM ? null : t("create.whitelist"))
+        : t(single ? "create.closed_multi" : "create.closed_single")
       this.renderStatus()
     } catch (e) { /* status is advisory; the launch call itself is still simulated before sending */ }
   }
@@ -99,8 +100,8 @@ export default class extends Controller {
     const n = this.pairs.length, full = n >= MAX_MARKETS
     if (this.hasPairSectionTarget) this.pairSectionTarget.classList.toggle("pairs-full", full)
     if (this.hasPairsNoteTarget) {
-      this.pairsNoteTarget.textContent = full ? `${MAX_MARKETS} of ${MAX_MARKETS} markets, the most a token can have. Remove one (×) to pick another.`
-        : n > 1 ? `${n} of ${MAX_MARKETS} markets` : ""
+      this.pairsNoteTarget.textContent = full ? t("create.full", { max: MAX_MARKETS })
+        : n > 1 ? t("create.count", { n, max: MAX_MARKETS }) : ""
       this.pairsNoteTarget.classList.toggle("full", full)
     }
     if (this.stocks) this.renderStocks()
@@ -108,7 +109,7 @@ export default class extends Controller {
 
   // a click on a sixth pair: make the limit visible instead of doing nothing
   flashFull() {
-    if (!this.hasPairsNoteTarget) return showMsg(this.msgTarget, false, `At most ${MAX_MARKETS} markets`)
+    if (!this.hasPairsNoteTarget) return showMsg(this.msgTarget, false, t("create.at_most", { max: MAX_MARKETS }))
     const el = this.pairsNoteTarget
     el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash")
   }
@@ -136,12 +137,12 @@ export default class extends Controller {
   async addPair(addr, known) {
     this.msgTarget.hidden = true
     try {
-      if (!/^0x[0-9a-f]{40}$/.test(addr)) throw new Error("Not an address")
+      if (!/^0x[0-9a-f]{40}$/.test(addr)) throw new Error(t("create.not_address"))
       if (this.pairs.some((p) => p.address === addr)) return
       if (this.pairs.length >= MAX_MARKETS) return this.flashFull()
       if (addr !== zeroAddress && addr !== this.ci.reference.address.toLowerCase()) {
         const ok = await this.pc.readContract({ address: this.a.quotePricer, abi: quotePricerAbi, functionName: "isPriceable", args: [addr] })
-        if (!ok) throw new Error("The on-chain pricer cannot price this asset (it needs a deep enough Uniswap route to ETH)")
+        if (!ok) throw new Error(t("create.not_priceable"))
       }
       const meta = known ?? {
         symbol: await this.pc.readContract({ address: addr, abi: erc20Abi, functionName: "symbol" }),
@@ -162,7 +163,7 @@ export default class extends Controller {
     const bps = Number(this.taxTarget.value)
     this.taxLabelTarget.textContent = `${(bps / 100).toFixed(1)}%`
     const base = this.econ?.baseFee ?? 100, share = this.econ?.share ?? 5000
-    this.feeLineTarget.textContent = `Every trade pays a ${((base + bps) / 100).toFixed(2)}% pool fee: ${base / 100}% base fee (${share / 100}% of it to the protocol) plus your ${(bps / 100).toFixed(1)}% tax.`
+    this.feeLineTarget.textContent = t("create.fee_line", { total: ((base + bps) / 100).toFixed(2), base: base / 100, share: share / 100, tax: (bps / 100).toFixed(1) })
   }
 
   // ---- token image: drop, browse or paste; preview at once, pin to IPFS when this mirror has an upload key ----
@@ -184,16 +185,16 @@ export default class extends Controller {
   }
 
   async useImage(file) {
-    if (!/^image\/(png|jpeg|gif|webp)$/.test(file.type)) return showMsg(this.msgTarget, false, "Use a PNG, JPG, GIF or WebP image")
-    if (file.size > 4 * 1024 * 1024) return showMsg(this.msgTarget, false, "The image is larger than 4 MB")
+    if (!/^image\/(png|jpeg|gif|webp)$/.test(file.type)) return showMsg(this.msgTarget, false, t("create.image_type"))
+    if (file.size > 4 * 1024 * 1024) return showMsg(this.msgTarget, false, t("create.image_size"))
     if (this.previewUrl) URL.revokeObjectURL(this.previewUrl)
     this.previewUrl = URL.createObjectURL(file)
     this.previewTarget.src = this.previewUrl
     this.previewTarget.hidden = false
     if (this.dropTarget.dataset.upload !== "1") {
-      return showMsg(this.msgTarget, false, "Image upload is not configured on this mirror: pin the image yourself and paste its ipfs:// or https:// link")
+      return showMsg(this.msgTarget, false, t("create.no_upload"))
     }
-    showMsg(this.msgTarget, true, "Uploading image…")
+    showMsg(this.msgTarget, true, t("create.uploading"))
     try {
       const fd = new FormData()
       fd.append("file", file)
@@ -201,7 +202,7 @@ export default class extends Controller {
       const j = await r.json()
       if (!r.ok) throw new Error(j.error)
       this.logoTarget.value = j.uri
-      showMsg(this.msgTarget, true, `Pinned as ${j.uri}`)
+      showMsg(this.msgTarget, true, t("create.pinned", { uri: j.uri }))
     } catch (err) { showMsg(this.msgTarget, false, errMsg(err)) }
   }
 
@@ -216,9 +217,9 @@ export default class extends Controller {
         const j = await r.json()
         if (!r.ok) throw new Error(j.error || "stock list unavailable")
         this.stocks = j
-        const by = j.kind === "bridged" ? `bridged by ${j.issuer}` : `from ${j.issuers.map((i) => i.name).join(" & ")}`
+        const by = j.kind === "bridged" ? t("create.bridged_by", { issuer: j.issuer }) : t("create.from", { issuers: j.issuers.map((i) => i.name).join(" & ") })
         const tradable = j.items.filter((i) => i.priceable).length
-        this.stocksNoteTarget.innerHTML = `${j.items.length} stock tokens ${by} · ${tradable} tradable. Greyed ones have no pool deep enough for the on-chain pricer yet, so a market against them cannot be opened. List via <a href="${j.attribution.url}" target="_blank" rel="noopener">${j.attribution.name}</a>${j.attribution.license ? ` (${j.attribution.license})` : ""}.`
+        this.stocksNoteTarget.innerHTML = t("create.stocks_note", { n: j.items.length, by, tradable, source: `<a href="${j.attribution.url}" target="_blank" rel="noopener">${j.attribution.name}</a>${j.attribution.license ? ` (${j.attribution.license})` : ""}` })
       } catch (e) { this.stocksListTarget.innerHTML = `<span class="muted small">${errMsg(e)}</span>`; return }
     }
     this.renderStocks()
@@ -230,9 +231,9 @@ export default class extends Controller {
     const items = this.stocks.items.filter((i) => !q || i.symbol.toLowerCase().includes(q) || (i.name || "").toLowerCase().includes(q))
     const chosen = new Set(this.pairs.map((p) => p.address))
     this.stocksListTarget.innerHTML = items.slice(0, 120).map((i) =>
-      `<button class="chip stock${chosen.has(i.address) ? " on" : ""}" ${i.priceable ? "" : "disabled"} title="${esc(i.name || "")}${i.priceable ? "" : " · cannot be priced yet"}"
+      `<button class="chip stock${chosen.has(i.address) ? " on" : ""}" ${i.priceable ? "" : "disabled"} title="${esc(i.name || "")}${i.priceable ? "" : " · " + t("create.not_priced_yet")}"
         data-action="create#pickStock" data-address="${i.address}" data-symbol="${esc(i.symbol)}" data-decimals="${i.decimals}">${esc(i.symbol)}</button>`).join("")
-      || `<span class="muted small">No stock matches.</span>`
+      || `<span class="muted small">${t("create.no_stock_match")}</span>`
   }
 
   async pickStock(e) {
@@ -252,11 +253,11 @@ export default class extends Controller {
       try {
         const j = await (await fetch(`/api/tokens?chain=${this.ci.slug}&q=${encodeURIComponent(q)}`)).json()
         this.results = j.items
-        const label = { quote: "used as a pair", verified: "verified", stock: "stock", par: "par token", address: "" }
-        this.resultsTarget.innerHTML = j.items.map((t, n) =>
-          `<button class="result" data-action="create#pickResult" data-index="${n}"><b>${esc(t.symbol || short(t.address))}</b>
-            <span class="muted small">${esc(t.name && t.name !== t.symbol ? t.name : "")} ${label[t.kind] ? `· ${label[t.kind]}` : ""} · ${short(t.address)}</span></button>`).join("")
-          || `<div class="muted small pad">No match. Paste the token's contract address instead.</div>`
+        const label = (k) => (["quote", "verified", "stock", "par"].includes(k) ? t(`create.kind.${k}`) : "")
+        this.resultsTarget.innerHTML = j.items.map((it, n) =>
+          `<button class="result" data-action="create#pickResult" data-index="${n}"><b>${esc(it.symbol || short(it.address))}</b>
+            <span class="muted small">${esc(it.name && it.name !== it.symbol ? it.name : "")} ${label(it.kind) ? `· ${label(it.kind)}` : ""} · ${short(it.address)}</span></button>`).join("")
+          || `<div class="muted small pad">${t("create.no_match")}</div>`
         this.resultsTarget.hidden = false
       } catch { this.resultsTarget.hidden = true }
     }, 200)
@@ -264,9 +265,9 @@ export default class extends Controller {
 
   async pickResult(e) {
     e.preventDefault()
-    const t = this.results[Number(e.currentTarget.dataset.index)]
+    const it = this.results[Number(e.currentTarget.dataset.index)]
     this.resultsTarget.hidden = true
-    await this.addPair(t.address, t.symbol && t.decimals != null ? { symbol: t.symbol, decimals: Number(t.decimals) } : undefined)
+    await this.addPair(it.address, it.symbol && it.decimals != null ? { symbol: it.symbol, decimals: Number(it.decimals) } : undefined)
   }
 
   async launch() {
@@ -274,15 +275,15 @@ export default class extends Controller {
     const btn = this.submitTarget
     try {
       const { address } = walletState()
-      if (!address) throw new Error("Connect a wallet first")
-      if (!this.econ) throw new Error("Factory terms are not loaded yet")
+      if (!address) throw new Error(t("wallet.connect_first"))
+      if (!this.econ) throw new Error(t("create.terms_loading"))
       const name = this.nameTarget.value.trim(), symbol = this.symbolTarget.value.trim().toUpperCase()
-      if (!name || !symbol) throw new Error("Name and ticker are required")
-      if (!this.modesValue.includes(this.feeMode)) throw new Error(`The "${this.feeMode}" fee mode is not available on this mirror`)
+      if (!name || !symbol) throw new Error(t("create.name_required"))
+      if (!this.modesValue.includes(this.feeMode)) throw new Error(t("create.mode_unavailable", { mode: this.feeMode }))
       const recipient = { creator: address, holders: this.a.holderVault, burn: this.a.burnVault, floor: this.a.floorVault }[this.feeMode]
-      if (!recipient || recipient === zeroAddress) throw new Error("This fee mode is not deployed on this chain")
+      if (!recipient || recipient === zeroAddress) throw new Error(t("create.mode_not_deployed"))
       const socials = Object.fromEntries(this.socialTargets.map((el) => [el.dataset.key, el.value.trim()]))
-      for (const [k, v] of Object.entries(socials)) if (v && !/^https?:\/\//.test(v)) throw new Error(`${k} must be a full https:// URL`)
+      for (const [k, v] of Object.entries(socials)) if (v && !/^https?:\/\//.test(v)) throw new Error(t("create.url_required", { field: k }))
       const params = {
         name, symbol, logo: this.logoTarget.value.trim(), description: this.descriptionTarget.value.trim(),
         socials: { twitter: socials.twitter, telegram: socials.telegram, discord: socials.discord, website: socials.website, farcaster: socials.farcaster },
@@ -295,7 +296,7 @@ export default class extends Controller {
       if (!this.multi) {
         const p = this.pairs[0]
         const route = await getEthRoute(this.pc, p.address, this.ci.id)
-        if (buy > 0n && !route) throw new Error(`No ${this.ci.reference.symbol} route to ${p.symbol}; set the opening buy to 0`)
+        if (buy > 0n && !route) throw new Error(t("create.no_route", { ref: this.ci.reference.symbol, symbol: p.symbol }))
         tx = { to: this.a.router, value: this.launchFee + buy,
                data: encodeFunctionData({ abi: routerAbi, functionName: "launchAndBuyWithEth", args: [params, 0n, p.address, route?.buyHops ?? [], 0n] }) }
       } else {
@@ -309,14 +310,14 @@ export default class extends Controller {
           // ERC-20 reference (USDC on Arc): the opening buy is pulled from an allowance; the launch fee is still `value`
           if (buy > 0n) {
             const allowance = await this.pc.readContract({ address: this.ci.reference.address, abi: erc20Abi, functionName: "allowance", args: [address, this.a.multiRouter] })
-            if (allowance < buy) { btn.textContent = "Approving USDC…"; await sendTx(this.ci, buildApprove(this.ci.reference.address, this.a.multiRouter)) }
+            if (allowance < buy) { btn.textContent = t("trade.approving_symbol", { symbol: this.ci.reference.symbol }); await sendTx(this.ci, buildApprove(this.ci.reference.address, this.a.multiRouter)) }
           }
           tx = { to: this.a.multiRouter, value: this.launchFee,
                  data: encodeFunctionData({ abi: multiRouterAbi, functionName: "launchAndBuyWithReference", args: [params, 0n, pairTokens, legs, buy, 0n] }) }
         }
       }
       btn.disabled = true
-      btn.textContent = "Confirm in your wallet…"
+      btn.textContent = t("create.confirm_wallet")
       const receipt = await sendTx(this.ci, tx)
       let token = null
       for (const l of receipt.logs) {
@@ -325,10 +326,10 @@ export default class extends Controller {
           if (ev.eventName === "TokenLaunched") { token = ev.args.token.toLowerCase(); break }
         } catch {}
       }
-      showMsg(this.msgTarget, true, `Launched ${token ? short(token) : ""} in ${short(receipt.transactionHash)}. Its page appears as soon as the indexer reaches the block.`)
+      showMsg(this.msgTarget, true, t("create.launched", { token: token ? short(token) : "", tx: short(receipt.transactionHash) }))
       if (token) setTimeout(() => window.Turbo.visit(`/token/${this.ci.slug}/${token}`), 5000)
     } catch (e) { showMsg(this.msgTarget, false, errMsg(e)) }
-    finally { btn.disabled = false; btn.textContent = "Launch" }
+    finally { btn.disabled = false; btn.textContent = t("create.launch") }
   }
 }
 

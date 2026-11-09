@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { t } from "../par/i18n"
 import { connect as connectWallet, onWallet, short, errMsg } from "../par/wallet"
 
 // Header button; also sends the portfolio page to ?owner=<address> once a wallet is connected.
@@ -7,7 +8,7 @@ export default class extends Controller {
 
   connect() {
     this.off = onWallet((w) => {
-      if (this.hasButtonTarget) this.buttonTarget.textContent = w.address ? short(w.address) : "Connect"
+      if (this.hasButtonTarget) this.buttonTarget.textContent = w.address ? short(w.address) : t("wallet.connect")
       if (w.address && location.pathname === "/portfolio" && !new URLSearchParams(location.search).get("owner")) {
         window.Turbo.visit(`/portfolio?owner=${w.address}`, { action: "replace" })
       }

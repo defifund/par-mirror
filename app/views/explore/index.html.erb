@@ -1,12 +1,12 @@
-<% content_for :title, "Explore" %>
+<% content_for :title, t("explore.title") %>
 <section class="hero">
-  <h1>Explore</h1>
-  <p class="muted">Every token launched on par, across <%= Par::Chains.enabled.map(&:name).to_sentence %>. Fixed supply, the whole supply in a Uniswap v4 pool locked forever.</p>
+  <h1><%= t("explore.title") %></h1>
+  <p class="muted"><%= t("explore.lead", chains: Par::Chains.enabled.map(&:name).to_sentence) %></p>
   <div class="row gap wrap">
-    <%= link_to "+ Create", new_launch_path, class: "btn primary" %>
+    <%= link_to t("explore.create"), new_launch_path, class: "btn primary" %>
     <% Par::Chains.enabled.each do |c| s = @syncs[c.id] %>
       <% next unless s&.backfilling %>
-      <span class="pill warn" title="<%= s.last_error %>"><%= c.slug.upcase %> · syncing history (<%= s.progress.round(1) %>%)</span>
+      <span class="pill warn" title="<%= s.last_error %>"><%= t("explore.syncing", chain: c.slug.upcase, pct: s.progress.round(1)) %></span>
     <% end %>
   </div>
 </section>
@@ -15,29 +15,29 @@
   <div class="toolbar">
     <div class="tabs">
       <% (["all"] + Par::Chains.enabled.map(&:slug)).each do |slug| %>
-        <%= link_to(slug == "all" ? "All chains" : ParHelper::CHAIN_SHORT[slug], root_path(chain: (slug unless slug == "all"), tab: @tab, q: params[:q].presence), class: ("active" if @chain_tab == slug)) %>
+        <%= link_to(slug == "all" ? t("common.all_chains") : ParHelper::CHAIN_SHORT[slug], root_path(chain: (slug unless slug == "all"), tab: @tab, q: params[:q].presence), class: ("active" if @chain_tab == slug)) %>
       <% end %>
     </div>
     <div class="tabs scroll-x">
-      <% { "trending" => "Trending", "mcap" => "Market cap", "new" => "New", "volume" => "Volume", "active" => "Last trade" }.each do |k, label| %>
-        <%= link_to label, root_path(tab: k, chain: (@chain_tab unless @chain_tab == "all"), q: params[:q].presence), class: ("active" if @tab == k) %>
+      <% %w[trending mcap new volume active].each do |k| %>
+        <%= link_to t("explore.tabs.#{k}"), root_path(tab: k, chain: (@chain_tab unless @chain_tab == "all"), q: params[:q].presence), class: ("active" if @tab == k) %>
       <% end %>
     </div>
     <%= form_with url: root_path, method: :get, class: "search-form", data: { controller: "autosubmit", turbo_frame: "explore" } do |f| %>
       <%= hidden_field_tag :tab, @tab %>
       <%= hidden_field_tag :chain, @chain_tab unless @chain_tab == "all" %>
-      <%= search_field_tag :q, params[:q], placeholder: "Search name, ticker or address", class: "search", data: { action: "input->autosubmit#submit" }, autocomplete: "off" %>
+      <%= search_field_tag :q, params[:q], placeholder: t("explore.search"), class: "search", data: { action: "input->autosubmit#submit" }, autocomplete: "off" %>
     <% end %>
   </div>
   <% live_ids = @chain_tab == "all" ? Par::Chains.enabled_ids : [Par::Chains.get(@chain_tab).id] %>
   <div data-controller="live" data-live-trades-value="<%= @tab == "active" %>" data-live-cursors-value="<%= live_ids.to_h { [_1, @syncs[_1]&.cursor_block.to_i] }.to_json %>">
     <div class="msg ok small live-banner" data-live-target="banner" hidden>
-      <%= link_to request.fullpath, data: { live_target: "bannerLink" } do %><span data-live-target="bannerText"></span> · show<% end %>
+      <%= link_to request.fullpath, data: { live_target: "bannerLink" } do %><span data-live-target="bannerText"></span> · <%= t("explore.show") %><% end %>
     </div>
   </div>
 
   <% if @rows.empty? %>
-    <div class="muted pad">No tokens<%= params[:q].present? ? " match" : " indexed yet" %>.</div>
+    <div class="muted pad"><%= params[:q].present? ? t("explore.no_match") : t("explore.none_yet") %></div>
   <% else %>
     <div class="grid">
       <% @rows.each do |r| %>
@@ -47,24 +47,24 @@
             <div class="grow ellipsis">
               <div class="ellipsis"><%= chain_badge(r[:chain]) %> <b><%= r[:name] %></b> <span class="muted">$<%= r[:symbol] %></span></div>
               <div class="small muted">
-                <%= r[:marketCount] > 1 ? "#{r[:marketCount]} markets" : "vs #{r[:quoteSymbol]}" %> · <%= ago(r[:createdAt]) %> old
+                <%= r[:marketCount] > 1 ? t("explore.markets", n: r[:marketCount]) : t("explore.vs", symbol: r[:quoteSymbol]) %> · <%= t("time.old", t: ago(r[:createdAt])) %>
                 <%= fee_mode_tag(r[:feeMode]) %>
               </div>
             </div>
           </div>
           <div class="kv">
-            <div><span class="muted small">MCap</span><b><%= usd(r[:marketCapUsd]) %></b></div>
-            <div><span class="muted small">24h vol</span><b><%= usd(r[:recentVolumeUsd]) %></b></div>
-            <div><span class="muted small">Price</span><b><% if r[:lastPriceUsd].to_f.positive? %>$<%= price(r[:lastPriceUsd]) %><% else %>—<% end %></b></div>
-            <div><span class="muted small">Holders</span><b><%= compact(r[:holders], 1) %></b></div>
+            <div><span class="muted small"><%= t("token.mcap_short") %></span><b><%= usd(r[:marketCapUsd]) %></b></div>
+            <div><span class="muted small"><%= t("token.vol24_short") %></span><b><%= usd(r[:recentVolumeUsd]) %></b></div>
+            <div><span class="muted small"><%= t("token.price") %></span><b><% if r[:lastPriceUsd].to_f.positive? %>$<%= price(r[:lastPriceUsd]) %><% else %>—<% end %></b></div>
+            <div><span class="muted small"><%= t("token.holders") %></span><b><%= compact(r[:holders], 1) %></b></div>
           </div>
         <% end %>
       <% end %>
     </div>
     <div class="row gap center pad">
-      <%= link_to "← Prev", root_path(tab: @tab, chain: (@chain_tab unless @chain_tab == "all"), q: params[:q].presence, page: @page - 1), class: "btn #{'disabled' if @page.zero?}" %>
-      <span class="muted"><%= @page * ExploreController::PER_PAGE + 1 %>–<%= [@total, (@page + 1) * ExploreController::PER_PAGE].min %> of <%= @total %></span>
-      <%= link_to "Next →", root_path(tab: @tab, chain: (@chain_tab unless @chain_tab == "all"), q: params[:q].presence, page: @page + 1), class: "btn #{'disabled' if (@page + 1) * ExploreController::PER_PAGE >= @total}" %>
+      <%= link_to t("explore.prev"), root_path(tab: @tab, chain: (@chain_tab unless @chain_tab == "all"), q: params[:q].presence, page: @page - 1), class: "btn #{'disabled' if @page.zero?}" %>
+      <span class="muted"><%= t("explore.range", from: @page * ExploreController::PER_PAGE + 1, to: [@total, (@page + 1) * ExploreController::PER_PAGE].min, total: @total) %></span>
+      <%= link_to t("explore.next"), root_path(tab: @tab, chain: (@chain_tab unless @chain_tab == "all"), q: params[:q].presence, page: @page + 1), class: "btn #{'disabled' if (@page + 1) * ExploreController::PER_PAGE >= @total}" %>
     </div>
   <% end %>
 <% end %>

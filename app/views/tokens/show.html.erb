@@ -4,36 +4,36 @@
   <div class="grow">
     <h1><%= r[:name] %> <span class="muted">$<%= r[:symbol] %></span></h1>
     <div class="row gap small muted wrap">
-      <span class="mono" data-controller="copy" data-copy-text-value="<%= r[:token] %>" data-action="click->copy#copy" title="copy address"><%= short(r[:token]) %> ⧉</span>
-      <%= explorer(current_chain, "token", r[:token], "explorer") %>
-      <% r[:socials].each do |k, u| %><% if safe_url(u) %><%= link_to({ twitter: "X" }[k] || k.to_s.capitalize, u, target: "_blank", rel: "noopener nofollow") %><% end %><% end %>
-      <span>by <%= who(current_chain, r[:deployer]) %> · <%= ago(r[:createdAt]) %> ago</span>
+      <span class="mono" data-controller="copy" data-copy-text-value="<%= r[:token] %>" data-action="click->copy#copy" title="<%= t('token.copy_address') %>"><%= short(r[:token]) %> ⧉</span>
+      <%= explorer(current_chain, "token", r[:token], t("token.explorer")) %>
+      <% r[:socials].each do |k, u| %><% if safe_url(u) %><%= link_to(k.to_s == "twitter" ? "X" : t("create.social.#{k}", default: k.to_s.capitalize), u, target: "_blank", rel: "noopener nofollow") %><% end %><% end %>
+      <span><%= t("token.by_html", who: who(current_chain, r[:deployer]), ago: t("time.ago", t: ago(r[:createdAt]))) %></span>
       <%= fee_mode_tag(r[:feeMode]) %>
-      <span class="live-dot" data-live-target="dot" title="Updates by itself as new trades are indexed">live</span>
+      <span class="live-dot" data-live-target="dot" title="<%= t('token.live_title') %>"><%= t("js.live.live") %></span>
     </div>
     <% if r[:description] %><p class="desc"><%= r[:description] %></p><% end %>
     <% can_edit = TokenProfile.editor?(Launch.new(deployer: r[:deployer], creator_fee_recipient: r[:creatorFeeRecipient]), current_wallet) %>
     <% if r[:editedOnMirror] || can_edit %>
       <p class="small muted">
-        <% if r[:editedOnMirror] %>Description, image or links edited by the creator on this mirror.<% end %>
-        <% if can_edit %><%= link_to "Edit details", edit_token_path(chain: current_chain.slug, token: r[:token]) %><% end %>
+        <% if r[:editedOnMirror] %><%= t("token.edited") %><% end %>
+        <% if can_edit %><%= link_to t("token.edit_details"), edit_token_path(chain: current_chain.slug, token: r[:token]) %><% end %>
       </p>
     <% end %>
   </div>
 </div>
 
 <% if (mode = Par::FeeModes[r[:feeMode]])&.token_note %>
-  <div class="msg <%= mode.severity %> risk"><b>Fee mode notice.</b> <%= mode.token_note %></div>
+  <div class="msg <%= mode.severity %> risk"><b><%= t("token.fee_notice") %></b> <%= mode.token_note %></div>
 <% end %>
 
 <div class="stats-row" data-live="stats">
-  <div><span class="muted small">Price</span><b><% if @ref_usd.positive? %>$<%= price(r[:lastPriceUsd]) %><% else %><%= price(r[:lastPriceEth]) %> <%= ref %><% end %></b></div>
-  <div><span class="muted small">Market cap</span><b><%= @ref_usd.positive? ? usd(r[:marketCapUsd]) : "#{compact(r[:marketCapEth])} #{ref}" %></b></div>
-  <div><span class="muted small">24h volume</span><b><%= compact(r[:recentVolumeEth]) %> <%= ref %></b></div>
-  <div><span class="muted small">Total volume</span><b><%= compact(r[:totalVolumeEth]) %> <%= ref %></b></div>
-  <div><span class="muted small">Trades</span><b><%= compact(r[:tradeCount], 1) %></b></div>
-  <div><span class="muted small">Holders</span><b><%= compact(r[:holders], 1) %></b></div>
-  <div><span class="muted small">Burned</span><b><%= compact(units(r[:burnedToken])) %></b></div>
+  <div><span class="muted small"><%= t("token.price") %></span><b><% if @ref_usd.positive? %>$<%= price(r[:lastPriceUsd]) %><% else %><%= price(r[:lastPriceEth]) %> <%= ref %><% end %></b></div>
+  <div><span class="muted small"><%= t("token.mcap") %></span><b><%= @ref_usd.positive? ? usd(r[:marketCapUsd]) : "#{compact(r[:marketCapEth])} #{ref}" %></b></div>
+  <div><span class="muted small"><%= t("token.vol24") %></span><b><%= compact(r[:recentVolumeEth]) %> <%= ref %></b></div>
+  <div><span class="muted small"><%= t("token.vol_total") %></span><b><%= compact(r[:totalVolumeEth]) %> <%= ref %></b></div>
+  <div><span class="muted small"><%= t("token.trades") %></span><b><%= compact(r[:tradeCount], 1) %></b></div>
+  <div><span class="muted small"><%= t("token.holders") %></span><b><%= compact(r[:holders], 1) %></b></div>
+  <div><span class="muted small"><%= t("token.burned") %></span><b><%= compact(units(r[:burnedToken])) %></b></div>
 </div>
 
 <div class="two-col">
@@ -49,48 +49,48 @@
         </div>
       </div>
       <div class="chart" data-chart-target="canvas"></div>
-      <div class="muted small" data-chart-target="empty" hidden>No trades indexed in this window yet.</div>
+      <div class="muted small" data-chart-target="empty" hidden><%= t("token.chart_empty") %></div>
     </div>
 
     <div class="card" data-controller="tabs">
       <div class="tabs">
-        <button class="active" data-action="tabs#show" data-tab="trades">Trades</button>
-        <button data-action="tabs#show" data-tab="holders">Holders (<span data-live="n-holders"><%= @holders[:holders] %></span>)</button>
-        <% if @distributions %><button data-action="tabs#show" data-tab="rewards">Rewards (<%= @distributions[:rounds] %>)</button><% end %>
-        <button data-action="tabs#show" data-tab="burns">Burns (<span data-live="n-burns"><%= @burn_total %></span>)</button>
-        <% if @floor %><button data-action="tabs#show" data-tab="floor">Floor</button><% end %>
-        <button data-action="tabs#show" data-tab="info">Info</button>
+        <button class="active" data-action="tabs#show" data-tab="trades"><%= t("token.tabs.trades") %></button>
+        <button data-action="tabs#show" data-tab="holders"><%= t("token.tabs.holders") %> (<span data-live="n-holders"><%= @holders[:holders] %></span>)</button>
+        <% if @distributions %><button data-action="tabs#show" data-tab="rewards"><%= t("token.tabs.rewards") %> (<%= @distributions[:rounds] %>)</button><% end %>
+        <button data-action="tabs#show" data-tab="burns"><%= t("token.tabs.burns") %> (<span data-live="n-burns"><%= @burn_total %></span>)</button>
+        <% if @floor %><button data-action="tabs#show" data-tab="floor"><%= t("token.tabs.floor") %></button><% end %>
+        <button data-action="tabs#show" data-tab="info"><%= t("token.tabs.info") %></button>
       </div>
       <div data-tabs-target="panel" data-tab="trades" class="scroll" data-live="trades">
         <table class="table small">
-          <thead><tr><th>Age</th><th>Side</th><th><%= ref %></th><th><%= r[:symbol] %></th><th>Price</th><th>Trader</th></tr></thead>
+          <thead><tr><th><%= t("token.col.age") %></th><th><%= t("token.col.side") %></th><th><%= ref %></th><th><%= r[:symbol] %></th><th><%= t("token.price") %></th><th><%= t("token.col.trader") %></th></tr></thead>
           <tbody>
-            <% @trades.each do |t| %>
-              <tr data-key="<%= t[:txHash] %>-<%= t[:logIndex] %>">
-                <td><%= explorer(current_chain, "tx", t[:txHash], ago(t[:timestamp])) %></td>
-                <td class="<%= t[:isBuy] ? 'up' : 'down' %>"><%= t[:isBuy] ? "Buy" : "Sell" %><%= " · #{t[:quoteSymbol]}" if t[:market] %></td>
-                <td><%= compact(t[:valueEth]) %></td>
-                <td><%= compact(units(t[:tokenAmount])) %></td>
-                <td><% if @ref_usd.positive? %>$<%= price(t[:priceEth].to_f * @ref_usd) %><% else %><%= price(t[:priceEth]) %><% end %></td>
-                <td class="mono"><%= t[:trader] ? who(current_chain, t[:trader]) : "…" %></td>
+            <% @trades.each do |tr| %>
+              <tr data-key="<%= tr[:txHash] %>-<%= tr[:logIndex] %>">
+                <td><%= explorer(current_chain, "tx", tr[:txHash], ago(tr[:timestamp])) %></td>
+                <td class="<%= tr[:isBuy] ? 'up' : 'down' %>"><%= tr[:isBuy] ? t("token.buy") : t("token.sell") %><%= " · #{tr[:quoteSymbol]}" if tr[:market] %></td>
+                <td><%= compact(tr[:valueEth]) %></td>
+                <td><%= compact(units(tr[:tokenAmount])) %></td>
+                <td><% if @ref_usd.positive? %>$<%= price(tr[:priceEth].to_f * @ref_usd) %><% else %><%= price(tr[:priceEth]) %><% end %></td>
+                <td class="mono"><%= tr[:trader] ? who(current_chain, tr[:trader]) : "…" %></td>
               </tr>
             <% end %>
           </tbody>
         </table>
-        <% if @trades.empty? %><div class="muted small pad">No trades indexed yet.</div><% end %>
+        <% if @trades.empty? %><div class="muted small pad"><%= t("token.no_trades") %></div><% end %>
       </div>
       <div data-tabs-target="panel" data-tab="holders" class="scroll" data-live="holders" hidden>
-        <p class="small muted"><%= @holders[:holders] %> holders · <%= compact(units(@holders[:inPools])) %> <%= r[:symbol] %> still in the pool<%= "s" if r[:marketCount] > 1 %></p>
+        <p class="small muted"><%= t("token.holders_line", n: @holders[:holders], amount: compact(units(@holders[:inPools])), symbol: r[:symbol]) %></p>
         <% labels = current_chain.addresses.to_h { |k, a| [a.downcase, k.to_s] } %>
         <table class="table small">
-          <thead><tr><th>#</th><th>Holder</th><th>Balance</th><th>Share</th></tr></thead>
+          <thead><tr><th>#</th><th><%= t("token.col.holder") %></th><th><%= t("token.col.balance") %></th><th><%= t("token.col.share") %></th></tr></thead>
           <tbody>
             <% @holders[:items].each_with_index do |h, i| %>
               <tr>
                 <td><%= i + 1 %></td>
                 <td class="mono"><%= who(current_chain, h[:owner]) %>
-                  <% if h[:owner] == r[:deployer] %><span class="tag">creator</span><% end %>
-                  <% if labels[h[:owner]] %><span class="tag"><%= labels[h[:owner]].humanize.downcase %></span><% end %></td>
+                  <% if h[:owner] == r[:deployer] %><span class="tag"><%= t("token.label.creator") %></span><% end %>
+                  <% if labels[h[:owner]] %><span class="tag"><%= t("token.contract.#{labels[h[:owner]]}", default: labels[h[:owner]].humanize.downcase) %></span><% end %></td>
                 <td><%= compact(units(h[:balance])) %></td>
                 <td><%= number_to_percentage(h[:share] * 100, precision: 2) %></td>
               </tr>
@@ -101,7 +101,7 @@
       <% if @distributions %>
       <div data-tabs-target="panel" data-tab="rewards" class="scroll" hidden>
         <table class="table small">
-          <thead><tr><th>Age</th><th>Round</th><th>Asset</th><th>Paid</th><th>Holders</th></tr></thead>
+          <thead><tr><th><%= t("token.col.age") %></th><th><%= t("token.col.round") %></th><th><%= t("token.col.asset") %></th><th><%= t("token.col.paid") %></th><th><%= t("token.holders") %></th></tr></thead>
           <tbody>
             <% @distributions[:items].each do |d| %>
               <tr>
@@ -114,16 +114,16 @@
             <% end %>
           </tbody>
         </table>
-        <% if @distributions[:items].empty? %><div class="muted small pad">No payout rounds indexed.</div><% end %>
+        <% if @distributions[:items].empty? %><div class="muted small pad"><%= t("token.no_payouts") %></div><% end %>
       </div>
       <% end %>
       <div data-tabs-target="panel" data-tab="burns" class="scroll" data-live="burns" hidden>
-        <% burner = { r[:deployer] => "creator", r[:creatorFeeRecipient] => "fee recipient",
-                      current_chain.addr(:locker) => "locker · protocol share", current_chain.addr(:multi_locker) => "locker · protocol share",
-                      current_chain.addr(:burn_vault) => "buyback & burn vault", current_chain.addr(:floor_vault) => "floor vault" } %>
-        <p class="small muted"><%= compact(units(r[:burnedToken])) %> <%= r[:symbol] %> burned in total<%= " · showing the latest 100" if @burn_total > 100 %></p>
+        <% burner = { r[:deployer] => t("token.label.creator"), r[:creatorFeeRecipient] => t("token.label.fee_recipient"),
+                      current_chain.addr(:locker) => t("token.label.locker"), current_chain.addr(:multi_locker) => t("token.label.locker"),
+                      current_chain.addr(:burn_vault) => t("token.label.burn_vault"), current_chain.addr(:floor_vault) => t("token.label.floor_vault") } %>
+        <p class="small muted"><%= t("token.burned_total", amount: compact(units(r[:burnedToken])), symbol: r[:symbol]) %><%= t("token.latest_100") if @burn_total > 100 %></p>
         <table class="table small">
-          <thead><tr><th>Age</th><th>Amount</th><th>Burned by</th></tr></thead>
+          <thead><tr><th><%= t("token.col.age") %></th><th><%= t("token.col.amount") %></th><th><%= t("token.col.burned_by") %></th></tr></thead>
           <tbody>
             <% @burns.each do |b| %>
               <tr>
@@ -134,36 +134,36 @@
             <% end %>
           </tbody>
         </table>
-        <% if @burns.empty? %><div class="muted small pad">No burns.</div><% end %>
+        <% if @burns.empty? %><div class="muted small pad"><%= t("token.no_burns") %></div><% end %>
       </div>
       <% if @floor %>
       <div data-tabs-target="panel" data-tab="floor" class="scroll" hidden>
-        <p class="small muted">Every placement of the <%= r[:quoteSymbol] %> wall, newest first. The floor price only ever rises.</p>
+        <p class="small muted"><%= t("token.floor_history", symbol: r[:quoteSymbol]) %></p>
         <table class="table small">
-          <thead><tr><th>Age</th><th>Floor</th><th>Quote in wall</th><th>Circulating</th></tr></thead>
+          <thead><tr><th><%= t("token.col.age") %></th><th><%= t("token.col.floor") %></th><th><%= t("token.col.quote_in_wall") %></th><th><%= t("token.col.circulating") %></th></tr></thead>
           <tbody>
             <% (@floor[:history] || []).reverse.first(200).each do |w| %>
               <tr>
                 <td><%= explorer(current_chain, "tx", w[:txHash], ago(w[:timestamp])) %></td>
-                <td><% if w[:floorPriceEth] %><% if @ref_usd.positive? %>$<%= price(w[:floorPriceEth] * @ref_usd) %><% else %><%= price(w[:floorPriceEth]) %><% end %><% else %><span class="muted">none</span><% end %></td>
+                <td><% if w[:floorPriceEth] %><% if @ref_usd.positive? %>$<%= price(w[:floorPriceEth] * @ref_usd) %><% else %><%= price(w[:floorPriceEth]) %><% end %><% else %><span class="muted"><%= t("common.none") %></span><% end %></td>
                 <td><%= compact(units(w[:quoteInWall], r[:quoteDecimals] || 18)) %> <%= r[:quoteSymbol] %></td>
                 <td><%= compact(units(w[:circulating])) %></td>
               </tr>
             <% end %>
           </tbody>
         </table>
-        <% if @floor[:history].blank? %><div class="muted small pad">No wall placements indexed.</div><% end %>
+        <% if @floor[:history].blank? %><div class="muted small pad"><%= t("token.no_walls") %></div><% end %>
       </div>
       <% end %>
       <div data-tabs-target="panel" data-tab="info" hidden>
         <table class="table small"><tbody>
-          <tr><td class="muted">Kind</td><td><%= r[:kind] == "multi" ? "multi-market (#{r[:marketCount]})" : "single market" %></td></tr>
+          <tr><td class="muted"><%= t("token.info.kind") %></td><td><%= r[:kind] == "multi" ? t("token.info.multi", n: r[:marketCount]) : t("token.info.single") %></td></tr>
           <% (r[:markets] || [r]).each_with_index do |m, i| %>
-            <tr><td class="muted">Market <%= i %></td><td>vs <%= m[:quoteSymbol] %> <span class="tag"><%= m[:quoteRisk] %></span> · pool <span class="mono"><%= short(m[:poolId]) %></span> · position #<%= m[:positionId] %></td></tr>
+            <tr><td class="muted"><%= t("token.info.market", i:) %></td><td><%= t("explore.vs", symbol: m[:quoteSymbol]) %> <span class="tag"><%= m[:quoteRisk] %></span> · <%= t("token.info.pool") %> <span class="mono"><%= short(m[:poolId]) %></span> · <%= t("token.info.position") %> #<%= m[:positionId] %></td></tr>
           <% end %>
-          <tr><td class="muted">Supply</td><td><%= compact(units(r[:supply])) %></td></tr>
-          <tr><td class="muted">Launch tx</td><td><%= explorer(current_chain, "tx", r[:launchTx]) %> (block <%= r[:createdBlock] %>)</td></tr>
-          <tr><td class="muted">Factory</td><td class="mono"><%= r[:factory] %></td></tr>
+          <tr><td class="muted"><%= t("token.info.supply") %></td><td><%= compact(units(r[:supply])) %></td></tr>
+          <tr><td class="muted"><%= t("token.info.launch_tx") %></td><td><%= explorer(current_chain, "tx", r[:launchTx]) %> (<%= t("token.info.block", n: r[:createdBlock]) %>)</td></tr>
+          <tr><td class="muted"><%= t("token.info.factory") %></td><td class="mono"><%= r[:factory] %></td></tr>
         </tbody></table>
       </div>
     </div>
