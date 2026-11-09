@@ -11,6 +11,7 @@
     <section class="card">
       <h3>Holdings</h3>
       <% if data[:positions].empty? %><p class="muted small">No par tokens held<%= " (yet: history is still syncing)" if SyncState.find_by(chain_id: chain.id)&.backfilling %>.</p><% else %>
+        <div class="table-wrap">
         <table class="table">
           <thead><tr><th>Token</th><th>Balance</th><th>Value</th><th>Bought</th><th>Sold</th></tr></thead>
           <tbody>
@@ -25,12 +26,14 @@
             <% end %>
           </tbody>
         </table>
+        </div>
       <% end %>
     </section>
 
     <section class="card">
       <h3>Launched or receiving fees</h3>
       <% if data[:launched].empty? %><p class="muted small">None.</p><% else %>
+        <div class="table-wrap">
         <table class="table">
           <thead><tr><th>Token</th><th>Market cap</th><th>Creator earned</th><th>Fee mode</th></tr></thead>
           <tbody>
@@ -44,6 +47,7 @@
             <% end %>
           </tbody>
         </table>
+        </div>
       <% end %>
     </section>
 </div>

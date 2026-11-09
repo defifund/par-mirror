@@ -18,7 +18,7 @@
         <%= link_to(slug == "all" ? "All chains" : ParHelper::CHAIN_SHORT[slug], root_path(chain: (slug unless slug == "all"), tab: @tab, q: params[:q].presence), class: ("active" if @chain_tab == slug)) %>
       <% end %>
     </div>
-    <div class="tabs">
+    <div class="tabs scroll-x">
       <% { "trending" => "Trending", "mcap" => "Market cap", "new" => "New", "volume" => "Volume", "active" => "Last trade" }.each do |k, label| %>
         <%= link_to label, root_path(tab: k, chain: (@chain_tab unless @chain_tab == "all"), q: params[:q].presence), class: ("active" if @tab == k) %>
       <% end %>
