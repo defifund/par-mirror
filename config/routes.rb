@@ -24,7 +24,7 @@ Rails.application.routes.draw do
     get "launches/count", action: :count
     get "launches/:token", action: :launch, constraints: { token: /0x\h{40}/ }
     get "launches"
-    %w[trades candles holders positions fees claimable burns buybacks stats distributions rewards floor resolve].each { get _1 }
+    %w[trades candles holders positions fees claimable burns buybacks stats distributions rewards floor resolve pulse].each { get _1 }
     get "tokenlist.json", action: :tokenlist
   end
 end

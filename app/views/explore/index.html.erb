@@ -29,6 +29,12 @@
       <%= search_field_tag :q, params[:q], placeholder: "Search name, ticker or address", class: "search", data: { action: "input->autosubmit#submit" }, autocomplete: "off" %>
     <% end %>
   </div>
+  <% live_ids = @chain_tab == "all" ? Par::Chains.enabled_ids : [Par::Chains.get(@chain_tab).id] %>
+  <div data-controller="live" data-live-trades-value="<%= @tab == "active" %>" data-live-cursors-value="<%= live_ids.to_h { [_1, @syncs[_1]&.cursor_block.to_i] }.to_json %>">
+    <div class="msg ok small live-banner" data-live-target="banner" hidden>
+      <%= link_to request.fullpath, data: { live_target: "bannerLink" } do %><span data-live-target="bannerText"></span> · show<% end %>
+    </div>
+  </div>
 
   <% if @rows.empty? %>
     <div class="muted pad">No tokens<%= params[:q].present? ? " match" : " indexed yet" %>.</div>

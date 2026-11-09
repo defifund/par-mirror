@@ -7,10 +7,19 @@ module Api
 
     POLL = 2
     LIFETIME = 300
+    # each stream holds a web thread: keep most threads free for pages (browsers use /pulse instead)
+    MAX_STREAMS = ENV.fetch("PAR_MAX_SSE_STREAMS", 1).to_i
+    OPEN = Concurrent::AtomicFixnum.new(0)
 
     def index
       chain = Par::Chains.get(Par::Chains.id_for(params[:chain]))
       return head(:not_found) unless Par::Chains.enabled_ids.include?(chain.id)
+      if OPEN.increment > MAX_STREAMS
+        OPEN.decrement
+        response.headers["Retry-After"] = "30"
+        return render(plain: "too many event streams on this mirror, poll /idx/#{chain.id}/pulse instead", status: :service_unavailable)
+      end
+      @counted = true
 
       response.headers["Content-Type"] = "text/event-stream"
       response.headers["Cache-Control"] = "no-cache"
@@ -39,6 +48,7 @@ module Api
     rescue ArgumentError
       head :not_found
     ensure
+      OPEN.decrement if @counted
       response.stream.close
     end
   end

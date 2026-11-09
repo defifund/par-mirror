@@ -1,5 +1,5 @@
 <% r = @row; ref = current_chain.reference[:symbol]; content_for :title, "#{r[:name]} ($#{r[:symbol]})" %>
-<div class="token-head">
+<div class="token-head" data-controller="live" data-live-token-value="<%= r[:token] %>" data-live-cursors-value="<%= { current_chain.id => SyncState.where(chain_id: current_chain.id).pick(:cursor_block).to_i }.to_json %>">
   <%= token_logo(r, size: 64) %>
   <div class="grow">
     <h1><%= r[:name] %> <span class="muted">$<%= r[:symbol] %></span></h1>
@@ -9,6 +9,7 @@
       <% r[:socials].each do |k, u| %><% if safe_url(u) %><%= link_to({ twitter: "X" }[k] || k.to_s.capitalize, u, target: "_blank", rel: "noopener nofollow") %><% end %><% end %>
       <span>by <%= explorer(current_chain, "address", r[:deployer]) %> · <%= ago(r[:createdAt]) %> ago</span>
       <%= fee_mode_tag(r[:feeMode]) %>
+      <span class="live-dot" data-live-target="dot" title="Updates by itself as new trades are indexed">live</span>
     </div>
     <% if r[:description] %><p class="desc"><%= r[:description] %></p><% end %>
   </div>
@@ -18,7 +19,7 @@
   <div class="msg <%= mode.severity %> risk"><b>Fee mode notice.</b> <%= mode.token_note %></div>
 <% end %>
 
-<div class="stats-row">
+<div class="stats-row" data-live="stats">
   <div><span class="muted small">Price</span><b><% if @ref_usd.positive? %>$<%= price(r[:lastPriceUsd]) %><% else %><%= price(r[:lastPriceEth]) %> <%= ref %><% end %></b></div>
   <div><span class="muted small">Market cap</span><b><%= @ref_usd.positive? ? usd(r[:marketCapUsd]) : "#{compact(r[:marketCapEth])} #{ref}" %></b></div>
   <div><span class="muted small">24h volume</span><b><%= compact(r[:recentVolumeEth]) %> <%= ref %></b></div>
@@ -47,18 +48,18 @@
     <div class="card" data-controller="tabs">
       <div class="tabs">
         <button class="active" data-action="tabs#show" data-tab="trades">Trades</button>
-        <button data-action="tabs#show" data-tab="holders">Holders (<%= @holders[:holders] %>)</button>
+        <button data-action="tabs#show" data-tab="holders">Holders (<span data-live="n-holders"><%= @holders[:holders] %></span>)</button>
         <% if @distributions %><button data-action="tabs#show" data-tab="rewards">Rewards (<%= @distributions[:rounds] %>)</button><% end %>
-        <button data-action="tabs#show" data-tab="burns">Burns (<%= @burn_total %>)</button>
+        <button data-action="tabs#show" data-tab="burns">Burns (<span data-live="n-burns"><%= @burn_total %></span>)</button>
         <% if @floor %><button data-action="tabs#show" data-tab="floor">Floor</button><% end %>
         <button data-action="tabs#show" data-tab="info">Info</button>
       </div>
-      <div data-tabs-target="panel" data-tab="trades" class="scroll">
+      <div data-tabs-target="panel" data-tab="trades" class="scroll" data-live="trades">
         <table class="table small">
           <thead><tr><th>Age</th><th>Side</th><th><%= ref %></th><th><%= r[:symbol] %></th><th>Price</th><th>Trader</th></tr></thead>
           <tbody>
             <% @trades.each do |t| %>
-              <tr>
+              <tr data-key="<%= t[:txHash] %>-<%= t[:logIndex] %>">
                 <td><%= explorer(current_chain, "tx", t[:txHash], ago(t[:timestamp])) %></td>
                 <td class="<%= t[:isBuy] ? 'up' : 'down' %>"><%= t[:isBuy] ? "Buy" : "Sell" %><%= " · #{t[:quoteSymbol]}" if t[:market] %></td>
                 <td><%= compact(t[:valueEth]) %></td>
@@ -71,7 +72,7 @@
         </table>
         <% if @trades.empty? %><div class="muted small pad">No trades indexed yet.</div><% end %>
       </div>
-      <div data-tabs-target="panel" data-tab="holders" class="scroll" hidden>
+      <div data-tabs-target="panel" data-tab="holders" class="scroll" data-live="holders" hidden>
         <p class="small muted"><%= @holders[:holders] %> holders · <%= compact(units(@holders[:inPools])) %> <%= r[:symbol] %> still in the pool<%= "s" if r[:marketCount] > 1 %></p>
         <% labels = current_chain.addresses.to_h { |k, a| [a.downcase, k.to_s] } %>
         <table class="table small">
@@ -109,7 +110,7 @@
         <% if @distributions[:items].empty? %><div class="muted small pad">No payout rounds indexed.</div><% end %>
       </div>
       <% end %>
-      <div data-tabs-target="panel" data-tab="burns" class="scroll" hidden>
+      <div data-tabs-target="panel" data-tab="burns" class="scroll" data-live="burns" hidden>
         <% burner = { r[:deployer] => "creator", r[:creatorFeeRecipient] => "fee recipient",
                       current_chain.addr(:locker) => "locker · protocol share", current_chain.addr(:multi_locker) => "locker · protocol share",
                       current_chain.addr(:burn_vault) => "buyback & burn vault", current_chain.addr(:floor_vault) => "floor vault" } %>

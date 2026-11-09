@@ -13,6 +13,24 @@ module Api
                      lagBlocks: s && (s.head_block.to_i - s.cursor_block), backfilling: s&.backfilling, error: s&.last_error }
     end
 
+    # GET /idx/:chain/pulse?since=<block>: what changed since a block, for pages that refresh themselves.
+    # Cheap and briefly cacheable; browsers poll this instead of holding an /events stream open.
+    def pulse
+      cursor, head = SyncState.where(chain_id: @chain.id).pick(:cursor_block, :head_block)
+      since = params[:since].to_i
+      out = { chainId: @chain.id, cursor: cursor.to_i, head: head.to_i }
+      if since.positive? && since < cursor.to_i
+        from = [since, cursor - 20_000].max + 1
+        out.merge!(Rails.cache.fetch(["idx/pulse", @chain.id, from, cursor], expires_in: 1.minute) do
+          trades = Trade.where(chain_id: @chain.id, block_number: from..cursor)
+          { tokens: trades.distinct.limit(500).pluck(:token), trades: trades.count,
+            launches: Launch.where(chain_id: @chain.id, launch_block: from..cursor).count }
+        end)
+      end
+      response.headers["Cache-Control"] = "public, max-age=2"
+      render json: out
+    end
+
     def launches = render(json: Par::LaunchRows.filter(rows, params).last)
     def count = render(json: { launched: Launch.where(chain_id: @chain.id).count })
 

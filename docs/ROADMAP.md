@@ -31,7 +31,7 @@ Status legend: [x] done · [~] in progress · [ ] to do · [!] blocked on the us
 - [x] Images on our own IPFS node (kubo accessory, 512 MB cap): `PinLogosJob` copies the original 2,940 logos off Pinata as CARs (same CIDs), `/ipfs/<cid>` serves them (falls back to the Pinata gateway), uploads pin to the node. Later: R2 backup of the datastore
 - [x] Stats: "Copy as text", holder payouts + wallets-paid charts, fee split section, leaderboards (volume, fees, holder payouts), per-chain cards, wallet counts
 - [x] Token page: holder-reward rounds (+ connected wallet's own rewards), burns list with burner labels, floor wall card + history
-- [ ] Live updates (Turbo Streams from the sync job) instead of polling
+- [x] Live updates: pages poll the cached `/idx/:chain/pulse` every 5 s (paused in background tabs); the token page swaps its `[data-live]` blocks when the token traded (new rows flash), Explore offers "N new tokens launched · show". `/events` streams capped per process (`PAR_MAX_SSE_STREAMS`, default 1) since each holds a web thread
 - [ ] Profiles (name / bio next to an address) — originally team-hosted; rebuild as wallet-signed (SIWE) profiles
 
 ## 5. Quality
