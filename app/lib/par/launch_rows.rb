@@ -12,11 +12,14 @@ module Par
     }.freeze
 
     # Every page reads these rows (3.6k launches on Robinhood Chain, ~12 MB), so each Puma process keeps its own copy
-    # in memory, indexed by token. Requests never wait for a rebuild: a copy older than FRESH is served as is while
-    # one background thread per chain refreshes it. The rebuild goes through Rails.cache, so the two processes share
-    # one build (1–3 s of queries) instead of each doing it. Only a process's very first request per chain waits.
-    FRESH = 10.seconds
-    Copy = Struct.new(:rows, :by_token, :at)
+    # in memory, indexed by token. Requests never wait for a rebuild: at most every CHECK a background thread looks at
+    # a tiny per-chain version number and reloads only when it moved (the indexer bumps it after a range with
+    # launches, swaps or transfers; quote refreshes and creator edits bump it too) or the copy is older than MAX_AGE
+    # (the 24 h volume window, fee and payout events). The reload goes through Rails.cache, keyed by that version, so
+    # the two processes share one build (1–3 s of queries). Only a process's very first read of a chain waits.
+    CHECK = 10.seconds
+    MAX_AGE = 5.minutes
+    Copy = Struct.new(:rows, :by_token, :version, :built_at, :checked_at)
     @copies = {}
     @lock = Mutex.new # guards @copies/@refreshing bookkeeping
     @first_load = Mutex.new # one cold build at a time per process
@@ -27,28 +30,34 @@ module Par
 
       def find(chain, token) = copy(chain).by_token[token.to_s.downcase]
 
-      # drop both layers for one chain (a creator just edited their token); this process rebuilds on the next read
+      # data behind the rows changed; every process reloads within CHECK
+      def changed!(chain_id)
+        Rails.cache.write(version_key(chain_id), SecureRandom.hex(6))
+      end
+
+      # a creator just edited their token: also drop this process's copy so their redirect shows the edit
       def expire(chain_id)
-        Rails.cache.delete(cache_key(chain_id))
+        changed!(chain_id)
         @lock.synchronize { @copies.delete(chain_id) }
       end
 
       private
 
-      def cache_key(chain_id) = "par/rows/#{chain_id}"
-
-      def shared(chain) = Rails.cache.fetch(cache_key(chain.id), expires_in: FRESH, race_condition_ttl: 5.seconds) { new(chain).build }
+      def version_key(chain_id) = "par/rows/v/#{chain_id}"
 
       def load(chain)
-        rows = shared(chain)
-        Copy.new(rows, rows.index_by { _1[:token] }, Time.now)
+        v = Rails.cache.read(version_key(chain.id)).to_s
+        bucket = Time.now.to_i / MAX_AGE.to_i
+        rows = Rails.cache.fetch("par/rows/#{chain.id}/#{v}/#{bucket}", expires_in: MAX_AGE * 2) { new(chain).build }
+        now = Time.now
+        Copy.new(rows, rows.index_by { _1[:token] }, v, now, now)
       end
 
       def copy(chain)
         return load(chain) if Rails.env.test? # no state carried between tests
 
         c = @copies[chain.id] || @first_load.synchronize { @copies[chain.id] ||= load(chain) }
-        refresh_later(chain) if Time.now - c.at > FRESH
+        refresh_later(chain) if Time.now - c.checked_at > CHECK
         c
       end
 
@@ -59,19 +68,20 @@ module Par
           @refreshing[chain.id] = true
         end
         Thread.new do
-          Rails.application.executor.wrap { @copies[chain.id] = load(chain) }
+          Rails.application.executor.wrap do
+            c = @copies[chain.id]
+            if c && Rails.cache.read(version_key(chain.id)).to_s == c.version && Time.now - c.built_at < MAX_AGE
+              c.checked_at = Time.now
+            else
+              @copies[chain.id] = load(chain)
+            end
+          end
         rescue => e
           Rails.logger.error("[launch_rows] refresh #{chain.slug} failed: #{e.class}: #{e.message}")
         ensure
           @lock.synchronize { @refreshing.delete(chain.id) }
         end
       end
-    end
-
-    # every enabled chain, or one chain when `slug` names it ("all"/blank = every chain)
-    def self.across(slug = nil)
-      chains = slug.blank? || slug == "all" ? Chains.enabled : [Chains.get(slug)]
-      chains.flat_map { self.for(_1) }
     end
 
     def self.filter(rows, params)

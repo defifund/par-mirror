@@ -40,6 +40,7 @@ module Par
         to = [from + chain.log_span - 1, head].min
         t0 = Time.now
         r = process_range(from, to)
+        LaunchRows.changed!(chain.id) if (r[:launches] + r[:swaps] + r[:transfers]).positive?
         done += 1
         lag = head - to
         state.update!(backfilling: lag > 50, last_error: nil)
