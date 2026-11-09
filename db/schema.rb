@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_10_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_10_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -105,6 +105,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_10_010000) do
     t.datetime "pinned_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "backed_up_at"
+    t.index ["backed_up_at"], name: "index_ipfs_pins_on_backed_up_at"
     t.index ["cid"], name: "index_ipfs_pins_on_cid", unique: true
     t.index ["status", "attempts"], name: "index_ipfs_pins_on_status_and_attempts"
   end

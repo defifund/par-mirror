@@ -65,6 +65,12 @@ module Par
       nil
     end
 
+    # the pinned blocks as a CAR file (restorable with dag/import, same CID)
+    def export_car(cid)
+      req = Net::HTTP::Post.new(URI("#{api}/api/v0/dag/export?arg=#{cid}&progress=false"))
+      rpc(req, read_timeout: 60).body
+    end
+
     def pinned?(cid)
       req = Net::HTTP::Post.new(URI("#{api}/api/v0/pin/ls?arg=#{cid}&type=recursive&quiet=true"))
       rpc(req, read_timeout: 10, raise_on_error: false).is_a?(Net::HTTPSuccess)

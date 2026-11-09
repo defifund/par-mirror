@@ -11,6 +11,9 @@ shared: &shared
   pin_logos:
     class: PinLogosJob
     schedule: every 5 minutes
+  backup_pins:
+    class: BackupPinsJob
+    schedule: every hour at minute 37
 
 development:
   <<: *shared

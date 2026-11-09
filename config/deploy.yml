@@ -27,6 +27,9 @@ env:
   secret:
     - RAILS_MASTER_KEY
     - POSTGRES_PASSWORD
+    - R2_ACCOUNT_ID         # optional: hourly backup of the IPFS pins to Cloudflare R2 (bucket par-mirror-ipfs)
+    - R2_ACCESS_KEY_ID
+    - R2_SECRET_ACCESS_KEY
     - PINATA_JWT            # optional fallback for uploads when PAR_IPFS_API is not set
   clear:
     RAILS_ENV: production
