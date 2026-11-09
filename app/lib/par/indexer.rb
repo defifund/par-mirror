@@ -333,7 +333,9 @@ module Par
 
     def price_quote(pair, decimals)
       return if reference?(pair) || Launch.exists?(chain_id: chain.id, token: pair)
-      raw = rpc.call(chain.addr(:quote_pricer), "priceEthAmountInQuote(address,uint256)", pair, WAD, returns: ["uint256"]).first
+      # one whole unit of the reference asset: 1e18 for ETH/BNB, but 1e6 on Arc, whose reference is 6-decimal USDC
+      one = 10**chain.reference[:decimals]
+      raw = rpc.call(chain.addr(:quote_pricer), "priceEthAmountInQuote(address,uint256)", pair, one, returns: ["uint256"]).first
       per_eth = raw.to_f / 10**decimals
       QuoteAsset.where(chain_id: chain.id, pair_token: pair).update_all(eth_per_unit: per_eth.positive? ? 1 / per_eth : 0, priced_at: Time.current)
     rescue Rpc::Error
@@ -359,9 +361,13 @@ module Par
       QuoteAsset.where(chain_id: chain.id, pair_token: pair).pick(:eth_per_unit) || 0.0
     end
 
+    # raw quote units per whole token, with 18 fractional digits: a 6-decimal quote (USDC, USDG) against a cheap token
+    # is only a few raw units per token, so an integer would keep one or two significant digits
     def price_x18(sqrt, c0)
       return 0 if sqrt.zero?
-      c0 ? sqrt * sqrt * WAD / Q192 : Q192 * WAD / (sqrt * sqrt)
+
+      num, den = c0 ? [sqrt * sqrt * WAD, Q192] : [Q192 * WAD, sqrt * sqrt]
+      BigDecimal("#{num * WAD / den}e-18")
     end
 
     # ---------- timestamps: exact every ts_granularity blocks, linear in between ----------

@@ -11,7 +11,7 @@ Status legend: [x] done · [~] in progress · [ ] to do · [!] blocked on the us
 5. [!] Decide: BNB Chain — first count the par launches there (archive says 29), then degraded mode or skip (§1)
 
 ## Known gaps / follow-ups
-- [ ] **Arc USD prices are ~10^12 too small** (found 2026-11-09 via the MCP): e.g. `long` shows market cap $4.92e-09 against 161K USDC volume, on the token page too. Likely the 6-decimal USDC reference vs 18-decimal tokens in the price scaling (`Par::Pricing` / `LaunchRows`)
+- [x] **Arc USD prices were 10^12 too small** (fixed 2026-11-09): quotes were priced with 1e18 units of the reference, i.e. 10^12 USDC on Arc; now one whole unit of the chain's reference. Also `price_x18` keeps 18 fractional digits (cheap tokens in a 6-decimal stable had 1–2 significant digits, on RH and Base too). Migration 20261110030000 rescales stored Arc quotes/trades and refills truncated prices from execution prices; `long` market cap $4.92e-09 → ~$4.9K, volume 161K → 301K USD (non-USDC markets were counted as ~0)
 - [~] Arc history backfill: server cursor 24,341,806 of head 30,289,019 (2026-11-09); RH and Base are caught up
 - [ ] RH stock quick-pick is only as fresh as stocksonchain.io (data stops 2026-10-17): find a fresher list or read Robinhood's beacon directly
 - [~] Logo copies: 2,950 of 2,951 CIDs pinned on our node; 1 not found anywhere yet (`PinLogosJob` retries up to 6×)

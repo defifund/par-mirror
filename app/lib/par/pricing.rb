@@ -11,6 +11,14 @@ module Par
       uri =~ %r{\Ahttps?://} ? uri : nil
     end
 
+    # a price_x18 value as the indexer API's decimal string: "6.051234", "70457389518" (no trailing zeros)
+    def self.x18_s(v)
+      return nil if v.nil?
+
+      s = v.to_d.to_s("F")
+      s.include?(".") ? s.sub(/0+\z/, "").delete_suffix(".") : s
+    end
+
     attr_reader :chain
 
     def initialize(chain)

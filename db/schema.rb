@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_10_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_10_030000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -170,7 +170,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_10_020000) do
     t.decimal "creator_fees_token", precision: 78, default: "0", null: false
     t.decimal "protocol_fees_quote", precision: 78, default: "0", null: false
     t.decimal "protocol_fees_token", precision: 78, default: "0", null: false
-    t.decimal "last_price_x18", precision: 78, default: "0", null: false
+    t.decimal "last_price_x18", precision: 78, scale: 18, default: "0.0", null: false
     t.bigint "last_trade_at"
     t.index ["chain_id", "pool_id"], name: "index_markets_on_chain_id_and_pool_id", unique: true
     t.index ["chain_id", "token", "idx"], name: "index_markets_on_chain_id_and_token_and_idx", unique: true
@@ -254,7 +254,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_10_020000) do
     t.decimal "quote_amount", precision: 78, null: false
     t.decimal "token_amount", precision: 78, null: false
     t.integer "fee"
-    t.decimal "price_x18", precision: 78
+    t.decimal "price_x18", precision: 78, scale: 18
     t.float "price_eth"
     t.float "quote_eth"
     t.float "value_eth"

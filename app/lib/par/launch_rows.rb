@@ -187,7 +187,7 @@ module Par
         quoteRisk: quote_risk(m.pair_token), phantomQuote: m.phantom_quote.to_i.to_s, positionId: m.position_id.to_i.to_s,
         quoteRaised: m.quote_raised.to_i.to_s, tokensOnCurve: m.tokens_on_curve.to_s, totalVolumeQuote: m.volume_quote.to_i.to_s,
         tradeCount: m.trade_count, creatorFeesQuote: m.creator_fees_quote.to_i.to_s, creatorFeesToken: m.creator_fees_token.to_i.to_s,
-        lastPriceQuoteX18: m.last_price_x18.to_i.to_s, lastPriceEth: tok_px, lastTradeAt: m.last_trade_at,
+        lastPriceQuoteX18: Pricing.x18_s(m.last_price_x18), lastPriceEth: tok_px, lastTradeAt: m.last_trade_at,
         _volEth: m.volume_quote.to_f / 10**m.quote_decimals * qe,
         _creatorEth: m.creator_fees_quote.to_f / 10**m.quote_decimals * qe + m.creator_fees_token.to_f / 1e18 * tok_px,
         _protocolEth: m.protocol_fees_quote.to_f / 10**m.quote_decimals * qe

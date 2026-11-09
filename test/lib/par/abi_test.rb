@@ -39,7 +39,8 @@ class Par::AbiTest < ActiveSupport::TestCase
   test "spot price from sqrtPriceX96 matches par-sdk priceX18FromSqrt" do
     e = Par::Abi.decode_log(Par::Events::SWAP, LOGS["swap"].first)
     ix = Par::Indexer.new(Par::Chains.get(4663))
-    assert_equal 5_090_139_299_671_203, ix.price_x18(e[:sqrtPriceX96], false)
+    # the SDK floors to an integer; the mirror keeps 18 more fractional digits
+    assert_equal 5_090_139_299_671_203, ix.price_x18(e[:sqrtPriceX96], false).to_i
   end
 
   test "decodes dynamic outputs: strings, nested tuples and struct arrays" do

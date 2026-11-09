@@ -28,7 +28,7 @@ module Par
         m = markets[t.pool_id]
         kind, symbol = kinds[t.token]
         { txHash: t.tx_hash, token: t.token, symbol:, trader: t.trader, sender: t.sender, isBuy: t.is_buy,
-          quoteAmount: t.quote_amount.to_i.to_s, tokenAmount: t.token_amount.to_i.to_s, fee: t.fee, priceQuoteX18: t.price_x18.to_i.to_s,
+          quoteAmount: t.quote_amount.to_i.to_s, tokenAmount: t.token_amount.to_i.to_s, fee: t.fee, priceQuoteX18: Pricing.x18_s(t.price_x18),
           priceEth: t.price_eth, valueEth: t.value_eth, timestamp: t.ts, blockNumber: t.block_number, logIndex: t.log_index,
           market: kind == "multi" ? t.market : nil, pairToken: m&.pair_token, quoteSymbol: m&.quote_symbol, quoteDecimals: m&.quote_decimals }
       end
