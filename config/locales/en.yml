@@ -300,6 +300,7 @@ en:
       mode_not_deployed: "This fee mode is not deployed on this chain"
       url_required: "%{field} must be a full https:// URL"
       no_route: "No %{ref} route to %{symbol}; set the opening buy to 0"
+      simulating: "Checking the opening buy…"
       confirm_wallet: "Confirm in your wallet…"
       launched: "Launched %{token} in %{tx}. Its page appears as soon as the indexer reaches the block."
     stats:

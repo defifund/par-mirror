@@ -304,6 +304,7 @@ zh-TW:
       mode_not_deployed: "這條鏈上沒有部署這種手續費模式"
       url_required: "%{field} 必須是以 https:// 開頭的完整網址"
       no_route: "沒有從 %{ref} 到 %{symbol} 的兌換路徑；請把首筆買入設為 0"
+      simulating: "正在核算首筆買入…"
       confirm_wallet: "請在錢包裡確認…"
       launched: "已發行 %{token}，交易 %{tx}。索引到這個區塊後，代幣頁面就會出現。"
     stats:

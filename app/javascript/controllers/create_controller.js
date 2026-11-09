@@ -1,5 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
-import { encodeFunctionData, parseAbi, parseUnits, zeroAddress, toHex, decodeEventLog } from "viem"
+import { encodeFunctionData, decodeFunctionResult, parseAbi, parseUnits, zeroAddress, toHex, decodeEventLog } from "viem"
 import { factoryAbi, multiFactoryAbi, multiRouterAbi, quotePricerAbi, erc20Abi, getEthRoute, buildLegs, buildApprove } from "par-sdk"
 
 // PairPadRouter.launchAndBuyWithEth (from par-sdk abi/PairPadRouter.json; the SDK's own routerAbi omits it)
@@ -14,6 +14,8 @@ import { t } from "../par/i18n"
 import { publicClient, sendTx, walletState, onWallet, errMsg, compact, short, units, showMsg } from "../par/wallet"
 
 const MAX_MARKETS = 5
+// slippage allowed on the opening buy against the pre-sign simulation
+const LAUNCH_SLIPPAGE_BPS = 100
 // last 8 bytes of every salt from this mirror: ASCII "PARMIRR1" (see app/lib/par/mirror_tag.rb)
 const MIRROR_TAG = "5041524d49525231"
 const statusAbi = parseAbi([
@@ -292,30 +294,49 @@ export default class extends Controller {
         salt: toHex(crypto.getRandomValues(new Uint8Array(24))) + MIRROR_TAG, // 24 random bytes + tag
       }
       const buy = this.devBuyTarget.value ? parseUnits(this.devBuyTarget.value.replace(",", "."), this.ci.reference.decimals) : 0n
-      let tx
+      // the launch tx for a given minimum on the opening buy
+      let txFor, abi, fn
       if (!this.multi) {
         const p = this.pairs[0]
         const route = await getEthRoute(this.pc, p.address, this.ci.id)
         if (buy > 0n && !route) throw new Error(t("create.no_route", { ref: this.ci.reference.symbol, symbol: p.symbol }))
-        tx = { to: this.a.router, value: this.launchFee + buy,
-               data: encodeFunctionData({ abi: routerAbi, functionName: "launchAndBuyWithEth", args: [params, 0n, p.address, route?.buyHops ?? [], 0n] }) }
+        ;[abi, fn] = [routerAbi, "launchAndBuyWithEth"]
+        txFor = (min) => ({ to: this.a.router, value: this.launchFee + buy,
+                            data: encodeFunctionData({ abi, functionName: fn, args: [params, 0n, p.address, route?.buyHops ?? [], min] }) })
       } else {
         const routes = await Promise.all(this.pairs.map((p) => getEthRoute(this.pc, p.address, this.ci.id)))
         const legs = buy > 0n ? buildLegs({ markets: this.pairs.map((_, i) => ({ index: i })) }, routes, buy, "buy") : []
         const pairTokens = this.pairs.map((p) => p.address)
+        abi = multiRouterAbi
         if (this.native) {
-          tx = { to: this.a.multiRouter, value: this.launchFee + buy,
-                 data: encodeFunctionData({ abi: multiRouterAbi, functionName: "launchAndBuyWithEth", args: [params, 0n, pairTokens, legs, 0n] }) }
+          fn = "launchAndBuyWithEth"
+          txFor = (min) => ({ to: this.a.multiRouter, value: this.launchFee + buy,
+                              data: encodeFunctionData({ abi, functionName: fn, args: [params, 0n, pairTokens, legs, min] }) })
         } else {
           // ERC-20 reference (USDC on Arc): the opening buy is pulled from an allowance; the launch fee is still `value`
           if (buy > 0n) {
             const allowance = await this.pc.readContract({ address: this.ci.reference.address, abi: erc20Abi, functionName: "allowance", args: [address, this.a.multiRouter] })
             if (allowance < buy) { btn.textContent = t("trade.approving_symbol", { symbol: this.ci.reference.symbol }); await sendTx(this.ci, buildApprove(this.ci.reference.address, this.a.multiRouter)) }
           }
-          tx = { to: this.a.multiRouter, value: this.launchFee,
-                 data: encodeFunctionData({ abi: multiRouterAbi, functionName: "launchAndBuyWithReference", args: [params, 0n, pairTokens, legs, buy, 0n] }) }
+          fn = "launchAndBuyWithReference"
+          txFor = (min) => ({ to: this.a.multiRouter, value: this.launchFee,
+                              data: encodeFunctionData({ abi, functionName: fn, args: [params, 0n, pairTokens, legs, buy, min] }) })
         }
       }
+      // Opening buy: simulate the launch as this wallet, then floor the buy at the simulated tokens minus slippage.
+      // An ETH-quoted buy can't be front-run (the pool is born in this tx), but a route through other pools to
+      // another quote asset can be sandwiched; a 0 minimum would accept any price. The simulation also surfaces a
+      // launch that would revert before the wallet is asked to sign.
+      let min = 0n
+      if (buy > 0n) {
+        btn.textContent = t("create.simulating")
+        const sim = txFor(0n)
+        const { data } = await this.pc.call({ account: address, to: sim.to, data: sim.data, value: sim.value })
+        const out = decodeFunctionResult({ abi, functionName: fn, data })
+        const tokensOut = out[out.length - 1] // (token, poolId, tokensOut) or (token, tokensOut)
+        min = (tokensOut * BigInt(10_000 - LAUNCH_SLIPPAGE_BPS)) / 10_000n
+      }
+      const tx = txFor(min)
       btn.disabled = true
       btn.textContent = t("create.confirm_wallet")
       const receipt = await sendTx(this.ci, tx)

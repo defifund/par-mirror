@@ -304,6 +304,7 @@ zh-CN:
       mode_not_deployed: "这条链上没有部署这种手续费模式"
       url_required: "%{field} 必须是以 https:// 开头的完整网址"
       no_route: "没有从 %{ref} 到 %{symbol} 的兑换路径；请把首笔买入设为 0"
+      simulating: "正在核算首笔买入…"
       confirm_wallet: "请在钱包里确认…"
       launched: "已发行 %{token}，交易 %{tx}。索引到这个区块后，代币页面就会出现。"
     stats:
