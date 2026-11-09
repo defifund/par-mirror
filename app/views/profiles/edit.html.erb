@@ -1,0 +1,50 @@
+<% content_for :title, "Profile" %>
+<div class="narrow">
+  <h1>Profile</h1>
+  <% if current_wallet.nil? %>
+    <%= render "shared/signin", why: "Sign in with your wallet to give your address a name, a short bio and links. They show up next to your trades, holdings and tokens on this mirror." %>
+  <% else %>
+    <div class="row gap between wrap" data-controller="siwe">
+      <p class="muted mono small">Signed in as <%= current_wallet %></p>
+      <div class="row gap">
+        <%= link_to "View portfolio", portfolio_path(owner: current_wallet), class: "btn" %>
+        <button class="btn" data-action="siwe#signOut">Sign out</button>
+      </div>
+    </div>
+
+    <%= form_with model: @profile, url: profile_path, method: :patch, class: "card stack" do |f| %>
+      <h3>About you</h3>
+      <% if @profile.errors.any? %><div class="msg err"><%= @profile.errors.full_messages.to_sentence %></div><% end %>
+      <div class="form">
+        <label><span class="lbl">Name <span class="hint">up to 32 characters</span></span><%= f.text_field :name, class: "input", maxlength: 32 %></label>
+        <label><span class="lbl">Image link <span class="hint">ipfs:// or https://</span></span><%= f.text_field :avatar, class: "input", placeholder: "ipfs://…" %></label>
+        <label class="span2"><span class="lbl">Bio <span class="hint">up to 280 characters</span></span><%= f.text_area :bio, class: "input", rows: 3, maxlength: 280 %></label>
+                  <% Profile::SOCIALS.each do |k| %>
+            <label><span class="lbl"><%= k == "twitter" ? "X / Twitter" : k.capitalize %> <span class="hint">optional, full URL</span></span><%= text_field_tag "profile[socials][#{k}]", @profile.socials[k], class: "input", placeholder: "https://" %></label>
+          <% end %>
+      </div>
+      <p class="small muted">Shown on this mirror only, to everyone. Names can't be addresses or pretend to be the site or the original team; the address is always shown alongside on your portfolio page.</p>
+      <div><%= f.submit "Save profile", class: "btn primary" %></div>
+    <% end %>
+
+    <section class="card stack">
+      <h3>Your tokens</h3>
+      <% if @tokens.blank? %>
+        <p class="small muted">No par tokens deployed by this address, or paying their creator fees to it.</p>
+      <% else %>
+        <p class="small muted">As the deployer or creator-fee recipient you can correct a token's description, image and links. The on-chain metadata stays as launched; this mirror shows your version, marked as edited.</p>
+        <table class="table small">
+          <tbody>
+            <% @tokens.each do |l| chain = Par::Chains.get(l.chain_id) %>
+              <tr>
+                <td><%= link_to "#{l.name} $#{l.symbol}", token_path(chain: chain.slug, token: l.token) %></td>
+                <td class="muted"><%= ParHelper::CHAIN_SHORT[chain.slug] %></td>
+                <td class="right"><%= link_to "Edit details", edit_token_path(chain: chain.slug, token: l.token) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% end %>
+    </section>
+  <% end %>
+</div>

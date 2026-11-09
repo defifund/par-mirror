@@ -32,7 +32,7 @@ Status legend: [x] done · [~] in progress · [ ] to do · [!] blocked on the us
 - [x] Stats: "Copy as text", holder payouts + wallets-paid charts, fee split section, leaderboards (volume, fees, holder payouts), per-chain cards, wallet counts
 - [x] Token page: holder-reward rounds (+ connected wallet's own rewards), burns list with burner labels, floor wall card + history
 - [x] Live updates: pages poll the cached `/idx/:chain/pulse` every 5 s (paused in background tabs); the token page swaps its `[data-live]` blocks when the token traded (new rows flash), Explore offers "N new tokens launched · show". `/events` streams capped per process (`PAR_MAX_SSE_STREAMS`, default 1) since each holds a web thread
-- [ ] Profiles (name / bio next to an address) — originally team-hosted; rebuild as wallet-signed (SIWE) profiles
+- [x] Profiles: Sign-In with Ethereum (EIP-4361, server-written message, signature recovered in plain Ruby, EOAs only), `/profile` name/bio/image/links shown next to addresses and on the portfolio; the deployer or creator-fee recipient can correct a token's description/image/links on the mirror (marked as edited)
 
 ## 5. Quality
 - [ ] Anvil-fork end-to-end test: launch → buy → sell → collect → claim through the real routers

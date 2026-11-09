@@ -36,6 +36,14 @@ module ParHelper
     "#{s / 86_400}d"
   end
 
+  # an address as a link to the explorer, labelled with its wallet-signed profile name when it has one
+  def who(chain, addr)
+    return "—" if addr.blank?
+    name = Profile.names[addr.downcase]
+    return explorer(chain, "address", addr) unless name
+    link_to(name.truncate(20), "#{chain.explorer}/address/#{addr}", target: "_blank", rel: "noopener", class: "named", title: "#{name} · #{addr}")
+  end
+
   def explorer(chain, kind, id, label = nil) = link_to(label || short(id), "#{chain.explorer}/#{kind}/#{id}", target: "_blank", rel: "noopener")
 
   FEE_MODE_LABEL = { "holders" => "fees → holders", "burn" => "buyback & burn", "floor" => "floor" }.freeze

@@ -86,6 +86,12 @@ export function price(n) {
 export const short = (a) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : "—")
 export const units = (raw, dec = 18) => (raw == null ? 0 : Number(BigInt(raw)) / 10 ** dec)
 
+// personal_sign (EIP-191) of a UTF-8 text, as Sign-In with Ethereum expects; no transaction, no gas
+export async function signMessage(address, text) {
+  const hex = "0x" + Array.from(new TextEncoder().encode(text), (b) => b.toString(16).padStart(2, "0")).join("")
+  return eth().request({ method: "personal_sign", params: [hex, address] })
+}
+
 export function showMsg(el, ok, text) {
   el.hidden = false
   el.className = `msg ${ok ? "ok" : "err"}`

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_10_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_10_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -175,6 +175,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_10_000000) do
     t.index ["launch_id"], name: "index_markets_on_launch_id"
   end
 
+  create_table "profiles", force: :cascade do |t|
+    t.string "address", null: false
+    t.string "name"
+    t.string "bio"
+    t.string "avatar"
+    t.jsonb "socials", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["address"], name: "index_profiles_on_address", unique: true
+  end
+
   create_table "quote_assets", force: :cascade do |t|
     t.integer "chain_id", null: false
     t.string "pair_token", null: false
@@ -212,6 +223,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_10_000000) do
     t.datetime "updated_at", null: false
     t.bigint "extras_cursor"
     t.index ["chain_id"], name: "index_sync_states_on_chain_id", unique: true
+  end
+
+  create_table "token_profiles", force: :cascade do |t|
+    t.integer "chain_id", null: false
+    t.string "token", null: false
+    t.text "description"
+    t.string "logo"
+    t.jsonb "socials", default: {}, null: false
+    t.string "updated_by", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["chain_id", "token"], name: "index_token_profiles_on_chain_id_and_token", unique: true
   end
 
   create_table "trades", force: :cascade do |t|

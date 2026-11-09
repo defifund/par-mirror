@@ -22,11 +22,14 @@
         <%= link_to "Create", new_launch_path, class: ("active" if current_page?(new_launch_path)) %>
         <%= link_to "Portfolio", portfolio_path, class: ("active" if request.path == portfolio_path) %>
         <%= link_to "Stats", stats_path, class: ("active" if current_page?(stats_path)) %>
+        <%= link_to "Profile", profile_path, class: ("active" if current_page?(profile_path)) %>
         <%= link_to "Docs", docs_path, target: "_blank" %>
       </nav>
       <button class="btn" data-action="wallet#login" data-wallet-target="button">Connect</button>
     </header>
     <main class="page">
+      <% if notice %><div class="msg ok"><%= notice %></div><% end %>
+      <% if alert %><div class="msg err"><%= alert %></div><% end %>
       <%= yield %>
     </main>
     <footer class="footer">

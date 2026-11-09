@@ -7,11 +7,18 @@
       <span class="mono" data-controller="copy" data-copy-text-value="<%= r[:token] %>" data-action="click->copy#copy" title="copy address"><%= short(r[:token]) %> ⧉</span>
       <%= explorer(current_chain, "token", r[:token], "explorer") %>
       <% r[:socials].each do |k, u| %><% if safe_url(u) %><%= link_to({ twitter: "X" }[k] || k.to_s.capitalize, u, target: "_blank", rel: "noopener nofollow") %><% end %><% end %>
-      <span>by <%= explorer(current_chain, "address", r[:deployer]) %> · <%= ago(r[:createdAt]) %> ago</span>
+      <span>by <%= who(current_chain, r[:deployer]) %> · <%= ago(r[:createdAt]) %> ago</span>
       <%= fee_mode_tag(r[:feeMode]) %>
       <span class="live-dot" data-live-target="dot" title="Updates by itself as new trades are indexed">live</span>
     </div>
     <% if r[:description] %><p class="desc"><%= r[:description] %></p><% end %>
+    <% can_edit = TokenProfile.editor?(Launch.new(deployer: r[:deployer], creator_fee_recipient: r[:creatorFeeRecipient]), current_wallet) %>
+    <% if r[:editedOnMirror] || can_edit %>
+      <p class="small muted">
+        <% if r[:editedOnMirror] %>Description, image or links edited by the creator on this mirror.<% end %>
+        <% if can_edit %><%= link_to "Edit details", edit_token_path(chain: current_chain.slug, token: r[:token]) %><% end %>
+      </p>
+    <% end %>
   </div>
 </div>
 
@@ -65,7 +72,7 @@
                 <td><%= compact(t[:valueEth]) %></td>
                 <td><%= compact(units(t[:tokenAmount])) %></td>
                 <td><% if @ref_usd.positive? %>$<%= price(t[:priceEth].to_f * @ref_usd) %><% else %><%= price(t[:priceEth]) %><% end %></td>
-                <td class="mono"><%= t[:trader] ? explorer(current_chain, "address", t[:trader]) : "…" %></td>
+                <td class="mono"><%= t[:trader] ? who(current_chain, t[:trader]) : "…" %></td>
               </tr>
             <% end %>
           </tbody>
@@ -81,7 +88,7 @@
             <% @holders[:items].each_with_index do |h, i| %>
               <tr>
                 <td><%= i + 1 %></td>
-                <td class="mono"><%= explorer(current_chain, "address", h[:owner]) %>
+                <td class="mono"><%= who(current_chain, h[:owner]) %>
                   <% if h[:owner] == r[:deployer] %><span class="tag">creator</span><% end %>
                   <% if labels[h[:owner]] %><span class="tag"><%= labels[h[:owner]].humanize.downcase %></span><% end %></td>
                 <td><%= compact(units(h[:balance])) %></td>

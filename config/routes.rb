@@ -8,6 +8,13 @@ Rails.application.routes.draw do
   get "t/:id", to: "tokens#short", constraints: { id: /\h{16}/ } # original short links in token metadata
   get "launch", to: "launches#new", as: :new_launch
   get "portfolio", to: "portfolios#show", as: :portfolio
+  get "profile", to: "profiles#edit", as: :profile
+  patch "profile", to: "profiles#update"
+  get "token/:chain/:token/edit", to: "token_profiles#edit", as: :edit_token, constraints: { token: /0x\h{40}/ }
+  patch "token/:chain/:token/edit", to: "token_profiles#update", constraints: { token: /0x\h{40}/ }
+  post "api/auth/message", to: "auth#message"
+  post "api/auth/verify", to: "auth#verify"
+  delete "api/auth", to: "auth#destroy"
   get "stats", to: "stats#show", as: :stats
   get "docs", to: "pages#docs", as: :docs
   get "api/config", to: "pages#config_json"
