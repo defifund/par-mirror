@@ -22,6 +22,8 @@ class ApplicationTool < MCP::Tool
     # MCP SDK entry point; subclasses implement `payload` instead.
     def call(server_context: nil, **args)
       text_response(payload(**args))
+    rescue Par::Trading::Error => e
+      text_response(error: e.message)
     rescue Par::Rpc::Error => e
       text_response(error: "a public chain node did not answer (#{e.message}); try again in a minute")
     end
@@ -73,6 +75,18 @@ class ApplicationTool < MCP::Tool
     end
 
     def clamp(value, default, max) = (value.presence || default).to_i.clamp(1, max)
+
+    # "0.015" with 18 decimals -> 15000000000000000; an error Hash for bad input
+    def raw_amount(value, decimals, field)
+      s = value.to_s.strip
+      return { error: "#{field} must be a positive decimal number such as \"0.01\"" } unless s.match?(/\A\d+(\.\d+)?\z/)
+      return { error: "#{field} has more than #{decimals} decimal places" } if s.split(".")[1].to_s.size > decimals
+
+      raw = (BigDecimal(s) * 10**decimals).to_i
+      raw.positive? ? raw : { error: "#{field} must be greater than zero" }
+    end
+
+    def display(raw, decimals) = (BigDecimal(raw) / 10**decimals).round([ decimals, 8 ].min).to_s("F").sub(/\.?0+\z/, "")
 
     # --- output helpers -----------------------------------------------------------------------------
 

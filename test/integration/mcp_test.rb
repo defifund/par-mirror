@@ -57,6 +57,17 @@ class McpTest < ActionDispatch::IntegrationTest
     end
   end
 
+
+  test "trade tools validate input and never touch the chain for bad requests" do
+    wallet = "0x" + "11" * 20
+    bad = call_tool("quote_trade", chain: "rh", token: "0x" + "22" * 20, side: "buy", amount: "0.01", wallet:)
+    assert_match(/not a par token/, bad["error"])
+    assert_match(/expired/, call_tool("build_trade", quote_id: "0123456789abcdef")["error"])
+    tools = post_mcp("tools/list").dig("result", "tools").index_by { _1["name"] }
+    assert tools["quote_trade"]["annotations"]["openWorldHint"]
+    assert_not tools["build_trade"]["annotations"]["destructiveHint"]
+  end
+
   private
 
   def post_mcp(method, **params)

@@ -5,10 +5,11 @@ module Par
   # so a long backfill against a public node degrades to "slow" instead of failing.
   class Rpc
     class Error < StandardError
-      attr_reader :code, :details
-      def initialize(code, message)
+      attr_reader :code, :details, :data
+      def initialize(code, message, data = nil)
         @code = code
         @details = message
+        @data = data # revert data of a failed eth_call, when the node returns it
         super("RPC #{code}: #{message}")
       end
     end
@@ -65,7 +66,7 @@ module Par
             sleep(2**[attempt, 5].min)
             next
           end
-          raise Error.new(err["code"], msg)
+          raise Error.new(err["code"], msg, err["data"].is_a?(String) ? err["data"] : err.dig("data", "data"))
         end
         return json["result"]
       end
@@ -76,6 +77,13 @@ module Par
     def tx_from(hash) = request("eth_getTransactionByHash", [hash])&.dig("from")&.downcase
     def eth_call(to, data, block: "latest") = request("eth_call", [{ to:, data: }, block])
     def balance(addr) = request("eth_getBalance", [addr, "latest"]).to_i(16)
+
+    # eth_call as `from` with `value`, optionally with a state override ({ address => { balance:, stateDiff: } }):
+    # how trades are quoted without a real balance or approval
+    def simulate(to:, data:, from:, value: 0, overrides: nil)
+      call = { from:, to:, data:, value: hex(value) }
+      request("eth_call", overrides ? [ call, "latest", overrides ] : [ call, "latest" ])
+    end
 
     # decode a view call: types are the output types, e.g. ["string"] or ["(address,uint256)[]"]
     def call(to, signature, *args, returns:)

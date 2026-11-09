@@ -54,7 +54,8 @@ Status legend: [x] done · [~] in progress · [ ] to do · [!] blocked on the us
 
 ## 4b. MCP for AI agents
 - [x] Read-only MCP server at `/mcp` (2026-11-09): official `mcp` gem 1.9, stateless Streamable HTTP, one class per tool in `app/mcp_tools/` (same layout as Pickful and smarts), per-IP rate limit, hosts follow `config.hosts`; `test/integration/mcp_test.rb`
-- [ ] Next: quotes and unsigned transactions (`quote_buy`/`quote_sell`, `build_trade_tx`, `build_launch_tx`, `build_claim_tx`) for agent wallets to sign; refuse to build a trade without a fresh quote (no `minOut = 0`)
+- [x] Trading for agent wallets (2026-11-09): `quote_trade` simulates a buy/sell with eth_call (sells override the token's balance/allowance slots, so any wallet can be quoted; Arc buys need a real USDC approval first) and keeps the quote 60 s; `build_trade` re-simulates, refuses if the output fell below the quote's minimum, and returns unsigned txs (exact-amount approval, then the trade with that minimum encoded). Price impact is measured against a 1/1000 probe, not the last trade price (a stale or gap-adjacent last price showed 13% for a $5 buy). Same paths as par-sdk trade.ts (`Par::Trading`); the full ABI encoder is pinned to viem output (`test/lib/par/abi_encode_test.rb`). The server never signs, holds keys or broadcasts
+- [ ] Next: `build_launch_tx`, `build_claim_tx`
 
 ## 5. Quality
 - [x] End-to-end test `test/e2e/fork_e2e.mjs`: launch (1 pair and 2 markets) → buy → sell → collectFees → claim native + claimToken, through the real routers on anvil forks of RH and Base (all pass). Use a fresh key: anvil's public test accounts carry EIP-7702 sweeper delegations on mainnet. Arc can't run on anvil (USDC precompile) → `arc_launch_sim.mjs` / `arc_trade_sim.mjs` simulate with eth_call on the real RPC: launch + USDC opening buy OK, quote + buy OK once approved

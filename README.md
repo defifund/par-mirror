@@ -18,7 +18,7 @@ Rails 8 · PostgreSQL · Solid Queue · Hotwire (Turbo + Stimulus) · viem + par
 | Stats `/stats` | totals, daily volume, launches per day, fee modes, $par buybacks |
 | Docs `/docs` | archived copy of the original docs |
 | API `/idx/rh/…` | same endpoints and shapes as the original public indexer (par-sdk `INTEGRATION.md` A8): `health launches launches/count launches/:token trades candles holders positions fees burns buybacks stats tokenlist.json`, plus `claimable` |
-| MCP `/mcp` | public, read-only MCP server (Streamable HTTP, stateless) for AI agents: 16 tools over the same data (`list_chains`, `search_tokens`, `get_token`, trades, candles, holders, positions, fees, claimable, burns, floor, holder payouts, rewards, $par buybacks, stats, short links). No auth, 60 requests per minute per IP (`PAR_MCP_RPM`); nothing signs or sends transactions. Tools live in `app/mcp_tools/` |
+| MCP `/mcp` | public MCP server (Streamable HTTP, stateless) for AI agents: 18 tools: the same data (`list_chains`, `search_tokens`, `get_token`, trades, candles, holders, positions, fees, claimable, burns, floor, holder payouts, rewards, $par buybacks, stats, short links) plus `quote_trade` → `build_trade`, which return unsigned buy/sell transactions for an agent's own wallet to sign. No auth, 60 requests per minute per IP (`PAR_MCP_RPM`); the server never signs, holds keys or sends transactions. Tools live in `app/mcp_tools/` |
 
 ## How it works
 

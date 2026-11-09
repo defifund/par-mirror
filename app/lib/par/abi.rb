@@ -97,7 +97,7 @@ module Par
       end
     end
 
-    # ---- encode (static argument types only: address, uint, int, bool, bytes32) ----
+    # ---- encode one static word: address, uint, int, bool, bytes32 ----
     def encode_word(t, v)
       case t
       when "address" then v.to_s.delete_prefix("0x").downcase.rjust(64, "0")
@@ -109,10 +109,48 @@ module Par
       end
     end
 
-    # call data for "name(type,type)" with static args
+    # call data for "name(type,type)": static args take the one-word path, anything with tuples, arrays,
+    # bytes or strings goes through the full encoder
     def calldata(signature, *args)
       types = split_types(signature[/\((.*)\)\z/, 1])
-      selector(signature) + types.zip(args).map { |t, a| encode_word(t, a) }.join
+      return selector(signature) + types.zip(args).map { |t, a| encode_word(t, a) }.join if types.none? { tuple?(_1) || array_type?(_1) || dynamic?(_1) }
+
+      selector(signature) + encode(types, args)
+    end
+
+    # ---- encode (full: static and dynamic types, tuples, nested arrays) ----
+    # encode(["(address,uint24)[]", "uint256"], [[["0x..", 3000]], 5]) -> hex without 0x
+    def encode(types, values)
+      heads = []
+      tails = []
+      tail_off = types.sum { |t| head_size(t) }
+      types.zip(values).each do |t, v|
+        if dynamic?(t)
+          heads << encode_word("uint256", tail_off)
+          enc = encode_one(t, v)
+          tails << enc
+          tail_off += enc.size / 2
+        else
+          heads << encode_one(t, v)
+        end
+      end
+      heads.join + tails.join
+    end
+
+    def encode_one(t, v)
+      if array_type?(t) # before tuple?: "(a,b)[]" also starts with "("
+        inner = array_inner(t)
+        body = encode([ inner ] * v.size, v)
+        fixed_len(t) ? body : encode_word("uint256", v.size) + body
+      elsif tuple?(t)
+        encode(tuple_types(t), v)
+      elsif t == "bytes" || t == "string"
+        raw = t == "bytes" ? hex_bytes(v.to_s) : v.to_s.b
+        hex = raw.unpack1("H*")
+        encode_word("uint256", raw.bytesize) + hex.ljust((hex.size + 63) / 64 * 64, "0")
+      else
+        encode_word(t, v)
+      end
     end
 
     # ---- events ----

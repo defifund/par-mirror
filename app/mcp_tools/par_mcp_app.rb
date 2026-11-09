@@ -2,7 +2,8 @@
 
 # POST /mcp: the mirror's public, read-only MCP server (Streamable HTTP, stateless), modelled on Pickful's PickfulMcpApp.
 #
-# - No auth: every tool reads public on-chain data the site already shows. Nothing signs or sends transactions.
+# - No auth: every tool reads public on-chain data the site already shows. quote_trade/build_trade only simulate and
+#   return unsigned transactions; nothing here signs, holds keys or sends.
 # - Stateless: each POST is one request/response, so it holds a web thread only for the query itself. That matters on a
 #   box with 6 Puma threads (see /idx/:chain/events for what a held connection costs); listen streams are declined.
 # - Per-IP rate limit, so an agent loop cannot crowd out the pages.
@@ -11,7 +12,8 @@ class ParMcpApp
     ListChainsTool, SearchTokensTool, GetTokenTool, ResolveShortLinkTool,
     GetTradesTool, GetCandlesTool, GetHoldersTool, GetPositionsTool,
     GetFeesTool, GetClaimableTool, GetBurnsTool, GetFloorTool,
-    GetHolderPayoutsTool, GetRewardsTool, GetBuybacksTool, GetStatsTool
+    GetHolderPayoutsTool, GetRewardsTool, GetBuybacksTool, GetStatsTool,
+    QuoteTradeTool, BuildTradeTool
   ].freeze
 
   INSTRUCTIONS = <<~TEXT.squish
@@ -19,7 +21,9 @@ class ParMcpApp
     trades from its first block in a permanently locked Uniswap pool. par.family is offline; this mirror re-indexes the same
     contracts. Start with list_chains, find tokens with search_tokens, then drill in. Amounts named *Eth or *Usd are decimals
     (Eth = the chain's reference asset, USDC on Arc); other amounts are raw integer strings in the asset's smallest unit.
-    These tools never trade or launch; nothing here is investment advice.
+    To trade, call quote_trade, then build_trade with its quoteId within 60 seconds: you get unsigned transactions
+    (an exact approval when needed, then the trade with a minimum output) for your own wallet to sign and send. This server
+    never signs, holds keys or broadcasts. Nothing here is investment advice.
   TEXT
 
   REQUESTS_PER_MINUTE = ENV.fetch("PAR_MCP_RPM", 60).to_i
