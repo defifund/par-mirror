@@ -16,7 +16,7 @@ class PinLogosJob < ApplicationJob
     workers = THREADS.times.map do
       Thread.new do
         Rails.application.executor.wrap do
-          while Time.now < deadline && (pin = (queue.pop(true) rescue nil))
+          while Time.now < deadline && !@throttled && (pin = (queue.pop(true) rescue nil))
             pin_one(pin)
           end
         end
@@ -38,6 +38,10 @@ class PinLogosJob < ApplicationJob
     end
     source, bytes = Par::Ipfs.import(pin.cid)
     pin.update!(status: "pinned", source:, bytes:, pinned_at: Time.current, error: nil, attempts: pin.attempts + 1)
+  rescue Par::Ipfs::RateLimited => e
+    # the gateways are throttling this server: not this CID's fault, stop the slice and retry later
+    @throttled = true
+    pin.update!(error: e.message.truncate(250))
   rescue StandardError => e
     pin.update!(status: "failed", error: e.message.truncate(250), attempts: pin.attempts + 1)
   end

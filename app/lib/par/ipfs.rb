@@ -27,9 +27,21 @@ module Par
       JSON.parse(rpc(req, read_timeout: 60).body.lines.last)["Hash"]
     end
 
-    # copy one CID from the public gateways into the node; returns [source, bytes]
+    class RateLimited < StandardError; end
+
+    # copy one CID into the node; returns [source, bytes]. First over the IPFS network itself
+    # (bitswap from whoever still pins it, e.g. Pinata's nodes: no gateway, no rate limit), then
+    # as a CAR from the public gateways. Raises RateLimited when the gateways are throttling us.
     def import(cid)
       errors = []
+      begin
+        req = Net::HTTP::Post.new(URI("#{api}/api/v0/pin/add?arg=#{cid}&recursive=true&progress=false&timeout=60s"))
+        rpc(req, read_timeout: 75)
+        return ["p2p", stat_size(cid)]
+      rescue StandardError => e
+        errors << "p2p: #{e.message.truncate(80)}"
+      end
+      limited = 0
       SOURCES.each do |src|
         car = fetch_car(src, cid)
         req = Net::HTTP::Post.new(URI("#{api}/api/v0/dag/import?pin-roots=true&stats=true"))
@@ -39,9 +51,18 @@ module Par
         raise "CAR root mismatch" unless root && root.dig("Cid", "/") == cid && root["PinErrorMsg"].blank?
         return [src.delete_prefix("https://"), car.bytesize]
       rescue StandardError => e
+        limited += 1 if e.message.include?("429")
         errors << "#{src.delete_prefix('https://')}: #{e.message.truncate(80)}"
       end
+      raise RateLimited, errors.join("; ") if limited.positive?
       raise errors.join("; ")
+    end
+
+    def stat_size(cid)
+      req = Net::HTTP::Post.new(URI("#{api}/api/v0/dag/stat?arg=#{cid}&progress=false"))
+      JSON.parse(rpc(req, read_timeout: 30).body.lines.last)["TotalSize"]
+    rescue StandardError
+      nil
     end
 
     def pinned?(cid)
@@ -51,8 +72,7 @@ module Par
 
     def fetch_car(src, cid)
       uri = URI("#{src}/ipfs/#{cid}?format=car")
-      waits = 0
-      6.times do
+      4.times do
         res = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 10, read_timeout: 40) do |h|
           h.get(uri.request_uri, "accept" => "application/vnd.ipld.car", "user-agent" => "par-community-mirror")
         end
@@ -60,16 +80,12 @@ module Par
           uri = URI.join(uri.to_s, res["location"])
           next
         end
-        if res.code == "429" && (waits += 1) <= 3 # public gateways rate-limit: back off and retry
-          sleep [res["retry-after"].to_i, 4 * waits].max.clamp(1, 30)
-          next
-        end
         raise "HTTP #{res.code}" unless res.is_a?(Net::HTTPSuccess)
         raise "not a CAR (#{res.content_type})" unless res.content_type.to_s.include?("ipld.car")
         raise "too large" if res.body.bytesize > MAX_BYTES
         return res.body
       end
-      raise "too many redirects or rate limited"
+      raise "too many redirects"
     end
 
     # GET a pinned file from the local gateway (no network fetches there); nil when we don't have it
