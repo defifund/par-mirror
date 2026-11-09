@@ -1,5 +1,6 @@
 Rails.application.routes.draw do
   get "up" => "rails/health#show", as: :rails_health_check
+  get "health" => "health#show" # external monitor: indexer, rows, host memory (503 when unhealthy)
   get "locale/:code", to: "locales#update", as: :locale, constraints: { code: /en|zh-CN|zh-TW/ }
 
   root "explore#index"

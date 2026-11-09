@@ -19,4 +19,11 @@ class PagesTest < ActionDispatch::IntegrationTest
     get "/idx/rh/launches"
     assert_response :success
   end
+
+  test "health reports 503 with problems on an empty index, 200 when the indexer is fresh" do
+    get "/health"
+    assert_response :service_unavailable
+    assert_includes response.parsed_body["problems"], "no launch rows"
+    assert response.parsed_body["memory"].key?("availableMb")
+  end
 end
