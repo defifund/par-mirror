@@ -74,15 +74,18 @@ export default class extends Controller {
     const buy = this.sideName === "buy"
     this.payUnitTarget.textContent = buy ? this.ref.symbol : this.symbolValue
     this.balanceTarget.textContent = walletState().address ? ` balance ${compact(units(buy ? this.bal.ref : this.bal.token, this.decIn))}` : ""
-    this.submitTarget.textContent = `${buy ? "Buy" : "Sell"} ${this.symbolValue}`
+    const approving = buy && this.needsApproval
+    this.submitTarget.textContent = approving ? `Approve ${this.ref.symbol}` : `${buy ? "Buy" : "Sell"} ${this.symbolValue}`
     this.submitTarget.classList.toggle("primary", buy)
     this.submitTarget.classList.toggle("danger", !buy)
-    this.submitTarget.disabled = this.raw === 0n || !this.launch
+    // never trade without a fresh quote: the quote is what sets the minimum received (slippage protection)
+    this.submitTarget.disabled = this.raw === 0n || !this.launch || (!approving && this.quoted == null)
   }
 
   quote() {
-    this.render()
     this.quoted = null
+    this.needsApproval = false
+    this.render()
     this.outTarget.textContent = "—"
     clearTimeout(this.timer)
     const raw = this.raw
@@ -90,13 +93,22 @@ export default class extends Controller {
     this.timer = setTimeout(async () => {
       try {
         const owner = walletState().address ?? undefined
+        // ERC-20 reference (USDC on Arc): the router pulls the input from an allowance that a simulation cannot fake,
+        // so a buy can only be quoted from a wallet that has approved the router — approve first, then quote
+        if (this.sideName === "buy" && !this.ref.native) {
+          if (!owner) { this.outTarget.textContent = `Connect a wallet to quote`; return }
+          const al = await this.pc.readContract({ address: this.ref.address, abi: erc20Abi, functionName: "allowance", args: [owner, this.launch.router] })
+          if (raw !== this.raw) return
+          if (al < raw) { this.needsApproval = true; this.outTarget.textContent = `Approve ${this.ref.symbol} to see the quote`; this.render(); return }
+        }
         const q = this.sideName === "buy"
           ? await quoteBuyWithEth(this.pc, this.launch, this.routes, raw, undefined, this.ci.id, owner)
           : await quoteSellToEth(this.pc, this.launch, this.routes, raw, owner, undefined, this.ci.id)
         if (raw !== this.raw) return
         this.quoted = q
         this.outTarget.textContent = `${compact(units(q, this.decOut))} ${this.sideName === "buy" ? this.symbolValue : this.ref.symbol}`
-      } catch (e) { showMsg(this.msgTarget, false, "Quote failed: " + errMsg(e)) }
+        this.render()
+      } catch (e) { showMsg(this.msgTarget, false, "Quote failed: " + errMsg(e)); this.render() }
     }, 300)
   }
 
@@ -109,8 +121,16 @@ export default class extends Controller {
     try {
       const { address } = walletState()
       if (!address) throw new Error("Connect a wallet first")
-      const min = this.quoted ? withSlippage(this.quoted, this.slip) : 0n
       const router = this.launch.router
+      if (this.sideName === "buy" && this.needsApproval) {
+        btn.textContent = `Approving ${this.ref.symbol}…`
+        await sendTx(this.ci, buildApprove(this.ref.address, router))
+        showMsg(this.msgTarget, true, `${this.ref.symbol} approved. Check the quote, then confirm the buy.`)
+        this.quote()
+        return
+      }
+      if (this.quoted == null) throw new Error("No quote yet: wait for the quote before trading")
+      const min = withSlippage(this.quoted, this.slip)
       let receipt
       if (this.sideName === "buy") {
         if (!this.ref.native) await this.approveIfNeeded(this.ref.address, router, raw, address)

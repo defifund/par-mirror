@@ -4,7 +4,7 @@ Goal (user, 2026-11-08): restore every feature the original site had, across all
 Status legend: [x] done · [~] in progress · [ ] to do · [!] blocked on the user
 
 ## Next up (as of 2026-11-09)
-1. [ ] Anvil-fork end-to-end test on RH, Base **and Arc** (see §5) — none of the transaction flows has been run with real txs yet
+1. [x] End-to-end test (2026-11-09, see §5): RH 12/12 and Base 12/12 on anvil forks; Arc via eth_call on the real RPC
 2. [ ] Verified quote lists per chain (§1)
 3. [ ] Dark-mode visual check (§5)
 4. [!] Decide: keeper wallet for `collectFees` / floor `rebalance` (§3) — who funds gas, where the key lives
@@ -26,7 +26,7 @@ Status legend: [x] done · [~] in progress · [ ] to do · [!] blocked on the us
 - [x] Explore "All" merges every enabled chain; rows carry their chain badge
 - [x] Token pages `/token/{rh,arc,base,bnb}/ADDRESS` per chain (route exists; views use `current_chain` from the URL)
 - [x] Stats per chain + "All chains" (USD totals)
-- [~] Trade/launch/claim on Arc: USDC reference → approvals, `*WithReference` router entry points — code written (create: `launchAndBuyWithReference`; trade box: USDC approve), never run with a real tx → verify in the e2e test
+- [x] Trade/launch/claim on Arc: USDC reference → approvals, `*WithReference` router entry points — launch + opening buy and approved buys verified with eth_call on the real Arc RPC
 - [ ] Verified quote lists per chain (from the archive where it has rows)
 - [x] Portfolio across chains
 
@@ -50,7 +50,8 @@ Status legend: [x] done · [~] in progress · [ ] to do · [!] blocked on the us
 - [x] Profiles: Sign-In with Ethereum (EIP-4361, server-written message, signature recovered in plain Ruby, EOAs only), `/profile` name/bio/image/links shown next to addresses and on the portfolio; the deployer or creator-fee recipient can correct a token's description/image/links on the mirror (marked as edited)
 
 ## 5. Quality
-- [ ] Anvil-fork end-to-end test: launch → buy → sell → collect → claim through the real routers, on RH, Base and Arc (USDC approve + `*WithReference` path)
+- [x] End-to-end test `test/e2e/fork_e2e.mjs`: launch (1 pair and 2 markets) → buy → sell → collectFees → claim native + claimToken, through the real routers on anvil forks of RH and Base (all pass). Use a fresh key: anvil's public test accounts carry EIP-7702 sweeper delegations on mainnet. Arc can't run on anvil (USDC precompile) → `arc_launch_sim.mjs` / `arc_trade_sim.mjs` simulate with eth_call on the real RPC: launch + USDC opening buy OK, quote + buy OK once approved
+- [x] Fixed (found by the e2e test): Arc buy quotes need a wallet that has approved USDC, so the trade box now shows "Approve USDC" first; and no chain sends a trade without a quote any more (it used to fall back to minimum received = 0)
 - [ ] Dark-mode visual check
 
 ## Cannot be restored without the original team
