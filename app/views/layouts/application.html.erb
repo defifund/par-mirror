@@ -10,6 +10,9 @@
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
     <%= javascript_include_tag "application", "data-turbo-track": "reload", type: "module" %>
+    <% if Rails.env.production? %>
+      <script defer src="https://stats.pickful.ai/script.js" data-website-id="c10aeda2-7a07-4641-a926-27530fdd23a9" data-turbo-eval="false"></script>
+    <% end %>
   </head>
   <body data-controller="wallet">
     <header class="header">
