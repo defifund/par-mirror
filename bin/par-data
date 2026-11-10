@@ -5,6 +5,9 @@
 #   bin/par-data export [FILE]          dump the par tables of the local DB (default tmp/par_chain.dump)
 #   bin/par-data push [FILE]            copy FILE to the Kamal db host and restore it into production
 #                                       (stops the job role first, starts it again afterwards)
+#   bin/par-data pull [FILE]            the reverse: dump the par tables on the server (read-only there) and
+#                                       restore them into the local DB, replacing its chain data. Stop bin/jobs
+#                                       first; the local sync then resumes from the server's cursor.
 #   bin/par-data status                 local sync position
 #
 # The dump is a consistent snapshot: data and the sync cursor are committed together, so the restored
@@ -60,6 +63,24 @@ when "push"
   sh "bin/kamal app exec --roles web 'bin/rails runner \"%w[#{TABLES.join(" ")}].each { |t| ActiveRecord::Base.connection.reset_pk_sequence!(t) }\"'"
   sh "bin/kamal app start --roles job"
   puts "restored; the job role resumes syncing from the imported cursor"
+when "pull"
+  file = ARGV[1] || "tmp/par_chain_server.dump"
+  FileUtils.mkdir_p(File.dirname(file))
+  target = "#{ssh_user}@#{db_host}"
+  remote = "/tmp/par_chain_pull.dump"
+  sh "ssh #{target} " + [
+    "docker exec #{db_container} pg_dump -U #{db_user} -Fc --data-only --no-owner #{TABLES.map { "-t #{_1}" }.join(' ')} -f #{remote} #{db_name}",
+    "docker cp #{db_container}:#{remote} #{remote}",
+    "docker exec #{db_container} rm #{remote}"
+  ].join(" && ").shellescape
+  sh "scp #{target}:#{remote} #{file.shellescape}"
+  sh "ssh #{target} rm #{remote}"
+  puts "downloaded #{file} (#{(File.size(file) / 1e6).round(1)} MB)"
+  truncate = "TRUNCATE #{TABLES.join(', ')} RESTART IDENTITY CASCADE"
+  sh %(psql -v ON_ERROR_STOP=1 -d #{local_db} -c "#{truncate}")
+  sh "pg_restore -d #{local_db} --data-only --no-owner --single-transaction #{file.shellescape}"
+  sh "bin/rails runner '%w[#{TABLES.join(" ")}].each { |t| ActiveRecord::Base.connection.reset_pk_sequence!(t) }'"
+  puts "restored the server's chain data locally; start bin/jobs to keep syncing from its cursor"
 when "status"
   sh %(psql -d #{local_db} -c "SELECT chain_id, cursor_block, head_block, backfilling, last_error FROM sync_states")
 else
