@@ -55,7 +55,7 @@ bin/setup                  # gems, bun packages, databases
 bin/dev                    # web + JS build watcher (Procfile.dev)
 bin/jobs                   # Solid Queue: chain sync (first full replay ≈ 1 h on the public RPC)
 bin/rails test             # ABI codec and trader derivation tests
-bin/fork-test              # send the launch form's and the MCP's transactions on a local anvil fork of
+bin/fork-test              # send the launch form's, the buy/sell box's and the MCP's transactions on a local anvil fork of
                            # Robinhood Chain and check the results (needs Foundry; rh indexed locally)
 bin/par-data status        # sync position
 ```

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Sends this app's transactions for real on a throwaway local fork of Robinhood Chain and checks the results:
-# the site's launch form (test/fork/launch_form.mjs) and the MCP build_launch / build_trade transactions
+# the site's launch form (test/fork/launch_form.mjs), the token page's buy/sell box (test/fork/trade_form.mjs) and the MCP build_launch / build_trade transactions
 # (test/fork/server_txs.rb). Needs Foundry's anvil, node_modules and a local database with rh indexed.
 # Nothing touches a real chain: anvil forks the public RPC read-only and signs with its own dev keys.
 #
 #   bin/fork-test            # both
-#   bin/fork-test form       # only the launch form
+#   bin/fork-test form       # only the site's forms (launch, buy/sell)
 #   bin/fork-test server     # only the server-built transactions
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -31,6 +31,7 @@ echo "fork of $UPSTREAM at $RPC"
 status=0
 if [ "${1:-all}" != server ]; then
   FORK_RPC=$RPC node test/fork/launch_form.mjs || status=1
+  FORK_RPC=$RPC node test/fork/trade_form.mjs || status=1
 fi
 if [ "${1:-all}" != form ]; then
   PAR_RPC_URL_4663=$RPC PAR_RPS_4663=50 FORK_CHAIN=rh bin/rails runner test/fork/server_txs.rb 2>&1 | grep -v -i "gemspec\|benchmark into" || status=1
