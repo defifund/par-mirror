@@ -95,3 +95,8 @@ These depended on the original team's keys or bots:
 
 Not built yet: automatic keeper, `/distributions` `/rewards` `/floor` `/events` endpoints, live
 trade streaming, multi-chain UI.
+
+## License
+
+MIT, see [LICENSE](LICENSE). par's contracts and SDK are MIT too. This is an independent community mirror,
+not affiliated with the par.family team; use it at your own risk.
