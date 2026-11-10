@@ -7,6 +7,7 @@ en:
     language: "Language"
     footer_title: "Community mirror of par."
     footer_body: "Rebuilt from the open-source contracts and SDK after par.family went offline. It reads the same contracts on-chain and sends transactions only from your own wallet. It is not operated by the original team and holds no admin keys or protocol fees."
+    footer_source: "Source code (MIT license)"
     risk: "Risk notice: transactions are irreversible; tokens can lose all value. Nothing here is financial advice. The contracts are unaudited."
   nav:
     explore: "Explore"

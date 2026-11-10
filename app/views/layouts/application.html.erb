@@ -41,7 +41,8 @@
       <%= yield %>
     </main>
     <footer class="footer">
-      <p><b><%= t("layout.footer_title") %></b> <%= t("layout.footer_body") %></p>
+      <p><b><%= t("layout.footer_title") %></b> <%= t("layout.footer_body") %>
+         <a href="https://github.com/defifund/par-mirror" target="_blank" rel="noopener"><%= t("layout.footer_source") %></a></p>
       <p class="muted"><%= t("layout.risk") %></p>
     </footer>
     <script type="application/json" id="i18n-js"><%= json_escape(t("js").to_json).html_safe %></script>

@@ -12,6 +12,7 @@ zh-CN:
     language: "语言"
     footer_title: "par 社区镜像。"
     footer_body: "par.family 下线后，基于开源合约和 SDK 重建。读取的是链上同一套合约，所有交易都只从你自己的钱包发出。本站不由原团队运营，没有任何管理员权限，也不收取协议费。"
+    footer_source: "源代码（MIT 开源许可）"
     risk: "风险提示：链上交易不可撤销，代币可能归零。本站内容不构成任何投资建议。合约未经审计。"
   nav:
     explore: "浏览"

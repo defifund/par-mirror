@@ -24,7 +24,7 @@ class ParMcpApp
     To trade, call quote_trade, then build_trade with its quoteId within 60 seconds: you get unsigned transactions
     (an exact approval when needed, then the trade with a minimum output) for your own wallet to sign and send.
     build_launch and build_claim_fees prepare a launch and a creator's fee claims the same way. This server
-    never signs, holds keys or broadcasts. Nothing here is investment advice.
+    never signs, holds keys or broadcasts. Source code (MIT): https://github.com/defifund/par-mirror. Nothing here is investment advice.
   TEXT
 
   REQUESTS_PER_MINUTE = ENV.fetch("PAR_MCP_RPM", 60).to_i

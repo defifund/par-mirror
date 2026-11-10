@@ -12,6 +12,7 @@ zh-TW:
     language: "語言"
     footer_title: "par 社群鏡像。"
     footer_body: "par.family 下線後，基於開源合約和 SDK 重建。讀取的是鏈上同一套合約，所有交易都只從你自己的錢包發出。本站不由原團隊運營，沒有任何管理員權限，也不收取協議費。"
+    footer_source: "原始碼（MIT 開源授權）"
     risk: "風險提示：鏈上交易不可撤銷，代幣可能歸零。本站內容不構成任何投資建議。合約未經審計。"
   nav:
     explore: "瀏覽"
