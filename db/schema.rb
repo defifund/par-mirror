@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_10_030000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_10_040000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -20,6 +20,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_10_030000) do
     t.string "owner", null: false
     t.decimal "balance", precision: 78, default: "0", null: false
     t.index ["chain_id", "owner"], name: "index_balances_on_chain_id_and_owner"
+    t.index ["chain_id", "token", "balance"], name: "index_balances_holders_rank", order: { balance: :desc }, where: "(balance > (0)::numeric)"
     t.index ["chain_id", "token", "owner"], name: "index_balances_on_chain_id_and_token_and_owner", unique: true
   end
 
