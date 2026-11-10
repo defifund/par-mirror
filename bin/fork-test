@@ -1,40 +1,62 @@
 #!/usr/bin/env bash
-# Sends this app's transactions for real on a throwaway local fork of Robinhood Chain and checks the results:
-# the site's launch form (test/fork/launch_form.mjs), the token page's buy/sell box (test/fork/trade_form.mjs) and the MCP build_launch / build_trade transactions
-# (test/fork/server_txs.rb). Needs Foundry's anvil, node_modules and a local database with rh indexed.
-# Nothing touches a real chain: anvil forks the public RPC read-only and signs with its own dev keys.
+# Sends this app's transactions for real on throwaway local forks of Robinhood Chain and Base and checks what the
+# chain did with them:
+#   test/e2e/fork_e2e.mjs  the site's pages: launch form (simulate, then floor the opening buy), buy/sell box,
+#                          collectFees, claim
+#   test/e2e/mcp_txs.rb    the MCP's build_launch and build_trade transactions (Par::Launching, Par::Trading)
+# Arc cannot be forked (anvil lacks its USDC precompile): see test/e2e/arc_*_sim.mjs.
+# Needs Foundry's anvil, node_modules and a local database with the chains indexed. Nothing touches a real chain:
+# anvil forks the public RPC read-only, and every run uses a fresh key funded inside the fork.
 #
-#   bin/fork-test            # both
-#   bin/fork-test form       # only the site's forms (launch, buy/sell)
-#   bin/fork-test server     # only the server-built transactions
+#   bin/fork-test              # rh and base, pages and MCP
+#   bin/fork-test rh           # one chain
+#   bin/fork-test rh pages     # or: rh mcp
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+CHAINS=${1:-rh,base}
+PART=${2:-all}
 # anvil from PATH if it runs (a mise shim without a pinned version does not), else the newest mise install
 if anvil --version >/dev/null 2>&1; then ANVIL=anvil
 else ANVIL=$(ls -d ~/.local/share/mise/installs/foundry/*/anvil 2>/dev/null | sort -V | tail -1)
 fi
 [ -n "${ANVIL:-}" ] || { echo "anvil not found: install Foundry"; exit 2; }
-UPSTREAM=${FORK_UPSTREAM:-https://rpc.mainnet.chain.robinhood.com}
-PORT=${FORK_PORT:-$(ruby -rsocket -e 's = TCPServer.new("127.0.0.1", 0); puts s.addr[1]; s.close')}
-RPC="http://127.0.0.1:$PORT"
 
-"$ANVIL" --fork-url "$UPSTREAM" --port "$PORT" --silent &
-PID=$!
-trap 'kill $PID 2>/dev/null || true' EXIT
-for _ in $(seq 1 60); do
-  curl -sf -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}' "$RPC" >/dev/null && break
-  sleep 1
-done
-echo "fork of $UPSTREAM at $RPC"
+TMP=$(mktemp -d)
+PIDS=()
+trap 'kill "${PIDS[@]}" 2>/dev/null || true; rm -rf "$TMP"' EXIT
+free_port() { ruby -rsocket -e 's = TCPServer.new("127.0.0.1", 0); puts s.addr[1]; s.close'; }
+
+# chain ids, public RPCs and contract addresses, the same JSON the pages read from /api/config
+bin/rails runner 'puts({ chains: Par::Chains.enabled.map(&:to_public_h) }.to_json)' 2>/dev/null | tail -1 > "$TMP/config.json"
+
+declare -A ID=([rh]=4663 [base]=8453)
+declare -A UPSTREAM=([rh]=https://rpc.mainnet.chain.robinhood.com [base]=https://mainnet.base.org)
+# a fresh fork per part: public nodes (publicnode on Base) refuse state older than a few minutes, and a fork stays
+# pinned at the block it started from
+fork() {
+  port=$(free_port); RPC="http://127.0.0.1:$port"
+  "$ANVIL" --fork-url "${FORK_UPSTREAM:-${UPSTREAM[$1]}}" --port "$port" --silent &
+  PIDS+=($!)
+  for _ in $(seq 1 60); do
+    curl -sf -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}' "$RPC" >/dev/null && return
+    sleep 1
+  done
+  echo "fork of $1 did not come up"; exit 2
+}
 
 status=0
-if [ "${1:-all}" != server ]; then
-  FORK_RPC=$RPC node test/fork/launch_form.mjs || status=1
-  FORK_RPC=$RPC node test/fork/trade_form.mjs || status=1
-fi
-if [ "${1:-all}" != form ]; then
-  PAR_RPC_URL_4663=$RPC PAR_RPS_4663=50 FORK_CHAIN=rh bin/rails runner test/fork/server_txs.rb 2>&1 | grep -v -i "gemspec\|benchmark into" || status=1
-  [ "${PIPESTATUS[0]}" -eq 0 ] || status=1
-fi
+for c in ${CHAINS//,/ }; do
+  [ -n "${ID[$c]:-}" ] || { echo "unknown chain $c (rh, base)"; exit 2; }
+  if [ "$PART" != mcp ]; then
+    fork "$c"
+    env "FORK_RPC_$c=$RPC" FORK_CONFIG="$TMP/config.json" node test/e2e/fork_e2e.mjs "$c" || status=1
+  fi
+  if [ "$PART" != pages ]; then
+    fork "$c"
+    echo
+    env "PAR_RPC_URL_${ID[$c]}=$RPC" "PAR_RPS_${ID[$c]}=50" FORK_CHAIN="$c" bin/rails runner test/e2e/mcp_txs.rb > "$TMP/mcp.log" 2>&1 || status=1
+    grep -v -i "gemspec\|benchmark into" "$TMP/mcp.log" || true
+  fi
+done
 exit $status

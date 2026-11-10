@@ -1,10 +1,11 @@
 // End-to-end test against anvil forks of the live chains: every transaction flow the mirror's pages send,
 // built exactly the way the Stimulus controllers build them (same par-sdk calls, same ABIs, same routers).
+// Run it through bin/fork-test, which starts the forks and writes the chain config; by hand:
 //
 //   anvil --fork-url https://rpc.mainnet.chain.robinhood.com --port 8601
 //   anvil --fork-url https://base-rpc.publicnode.com          --port 8602
-//   anvil --fork-url https://rpc.mainnet.arc.io                --port 8603
-//   node test/e2e/fork_e2e.mjs [rh,base]          (needs the dev server on :3000 for /api/config)
+//   node test/e2e/fork_e2e.mjs [rh,base]   (FORK_CONFIG = a saved /api/config, else the dev server on :3000;
+//                                           FORK_RPC_<slug> overrides the ports above)
 //
 // Arc cannot run here: its USDC is backed by a system precompile (0x1800…0001) that anvil does not have, so every
 // USDC transfer reverts with "invalid opcode" in a fork. Arc is checked with eth_call against the real RPC instead:
@@ -13,7 +14,7 @@
 //
 // Uses a throwaway key generated per run, funded with anvil_setBalance inside the fork.
 import { createPublicClient, createWalletClient, http, parseAbi, parseEther, parseUnits, formatUnits, encodeFunctionData,
-         decodeEventLog, zeroAddress, toHex, defineChain } from "viem"
+         decodeEventLog, decodeFunctionResult, zeroAddress, toHex, defineChain } from "viem"
 import { privateKeyToAccount, generatePrivateKey } from "viem/accounts"
 import { factoryAbi, multiFactoryAbi, multiRouterAbi, lockerAbi, multiLockerAbi, feeEscrowAbi, erc20Abi,
          getLaunch, getEthRoute, getEthRoutes, buildLegs, quoteBuyWithEth, quoteSellToEth, buildBuyWithEth, buildSellToEth,
@@ -32,7 +33,8 @@ const MIRROR_TAG = "5041524d49525231"
 // their keys are public, so on mainnet they carry EIP-7702 sweeper delegations that forward any ETH they receive.)
 const KEY = generatePrivateKey()
 const PORTS = { rh: 8601, base: 8602, arc: 8603 }
-const SLIP = 300
+const SLIP = 300              // trade_controller.js default
+const LAUNCH_SLIP = 100n       // create_controller.js LAUNCH_SLIPPAGE_BPS
 
 const results = []
 function record(chain, step, ok, detail) {
@@ -43,7 +45,8 @@ function record(chain, step, ok, detail) {
 async function main() {
   const only = (process.argv[2] || "rh,base").split(",")
   if (only.includes("arc")) console.log("arc: skipped — anvil cannot emulate Arc's USDC precompile; use test/e2e/arc_*_sim.mjs")
-  const cfg = await (await fetch("http://localhost:3000/api/config")).json()
+  const { readFileSync } = await import("node:fs")
+  const cfg = process.env.FORK_CONFIG ? JSON.parse(readFileSync(process.env.FORK_CONFIG, "utf8")) : await (await fetch("http://localhost:3000/api/config")).json()
   for (const ci of cfg.chains) {
     if (!only.includes(ci.slug) || !PORTS[ci.slug] || ci.slug === "arc") continue
     try { await runChain(ci) } catch (e) { record(ci.slug, "(aborted)", false, short(e)) }
@@ -54,7 +57,7 @@ async function main() {
 }
 
 async function runChain(ci) {
-  const rpc = `http://127.0.0.1:${PORTS[ci.slug]}`
+  const rpc = process.env[`FORK_RPC_${ci.slug}`] || `http://127.0.0.1:${PORTS[ci.slug]}`
   const chain = defineChain({ id: ci.id, name: ci.name, nativeCurrency: { name: "native", symbol: "NAT", decimals: 18 }, rpcUrls: { default: { http: [rpc] } } })
   const pc = createPublicClient({ chain, transport: http(rpc) })
   const account = privateKeyToAccount(KEY)
@@ -72,6 +75,18 @@ async function runChain(ci) {
       throw new Error(`reverted ${hash.slice(0, 10)}: ${why}`)
     }
     return { ...r, gasPaid: r.gasUsed * r.effectiveGasPrice }
+  }
+  const reverts = async (tx) => send(tx).then(() => false, () => true)
+  // the create form: simulate the whole launch as the wallet, floor the opening buy at simulated tokens - 1%, send
+  // (txFor(min) builds the launch for a given minimum). Also checks that a minimum above the simulation reverts.
+  const launchFloored = async (label, abi, fn, txFor) => {
+    const sim = txFor(0n)
+    const { data } = await pc.call({ account: me, to: sim.to, data: sim.data, value: sim.value })
+    const out = decodeFunctionResult({ abi, functionName: fn, data })
+    const tokensOut = out[out.length - 1]
+    const min = (tokensOut * (10_000n - LAUNCH_SLIP)) / 10_000n
+    record(S, `${label}: min too high reverts`, await reverts(txFor(tokensOut * 2n)), `min ${fmt(tokensOut * 2n, 18)} = 2 × simulated`)
+    return { r: await send(txFor(min)), tokensOut, min }
   }
   const nativeBal = () => pc.getBalance({ address: me })
   const erc20Bal = (t) => pc.readContract({ address: t, abi: erc20Abi, functionName: "balanceOf", args: [me] })
@@ -112,11 +127,12 @@ async function runChain(ci) {
 
   // 1. single-pair launch with an opening buy (create page, one pair = the reference asset)
   try {
-    let r, multi
+    let r, multi, sim
     if (ref.native) {
       const route = await getEthRoute(pc, ref.address, ci.id)
-      r = await send({ to: a.router, value: fee + devBuy,
-        data: encodeFunctionData({ abi: routerAbi, functionName: "launchAndBuyWithEth", args: [params("a"), 0n, ref.address, route?.buyHops ?? [], 0n] }) })
+      sim = await launchFloored("launch 1 pair", routerAbi, "launchAndBuyWithEth", (min) => ({ to: a.router, value: fee + devBuy,
+        data: encodeFunctionData({ abi: routerAbi, functionName: "launchAndBuyWithEth", args: [params("a"), 0n, ref.address, route?.buyHops ?? [], min] }) }))
+      r = sim.r
       multi = false
     } else {
       // Arc: ERC-20 reference → always the multi router, opening buy pulled from an allowance
@@ -129,7 +145,8 @@ async function runChain(ci) {
     }
     const token = launchedToken(r, multi)
     const held = token ? await erc20Bal(token) : 0n
-    record(S, `launch 1 pair + opening buy`, !!token && held > 0n, `${token ?? "no TokenLaunched event"} · got ${fmt(held, 18)} tokens · gas ${r.gasUsed}`)
+    const floor = sim ? ` (simulated ${fmt(sim.tokensOut, 18)}, min ${fmt(sim.min, 18)})` : ""
+    record(S, `launch 1 pair + opening buy`, !!token && held > 0n && (!sim || (sim.min > 0n && held >= sim.min)), `${token ?? "no TokenLaunched event"} · got ${fmt(held, 18)} tokens${floor} · gas ${r.gasUsed}`)
     if (token) tokens.push({ tag: "a", token, multi })
   } catch (e) { record(S, "launch 1 pair + opening buy", false, short(e)) }
 
@@ -139,11 +156,11 @@ async function runChain(ci) {
       const pairs = [ref.address, a.usdg]
       const routes = await Promise.all(pairs.map((p) => getEthRoute(pc, p, ci.id)))
       const legs = buildLegs({ markets: pairs.map((_, i) => ({ index: i })) }, routes, devBuy, "buy")
-      const r = await send({ to: a.multiRouter, value: multiFee + devBuy,
-        data: encodeFunctionData({ abi: multiRouterAbi, functionName: "launchAndBuyWithEth", args: [params("m"), 0n, pairs, legs, 0n] }) })
-      const token = launchedToken(r, true)
+      const sim = await launchFloored("launch 2 markets", multiRouterAbi, "launchAndBuyWithEth", (min) => ({ to: a.multiRouter, value: multiFee + devBuy,
+        data: encodeFunctionData({ abi: multiRouterAbi, functionName: "launchAndBuyWithEth", args: [params("m"), 0n, pairs, legs, min] }) }))
+      const token = launchedToken(sim.r, true)
       const held = token ? await erc20Bal(token) : 0n
-      record(S, "launch 2 markets (ref + USDG) + buy", !!token && held > 0n, `${token ?? "no TokenLaunched event"} · got ${fmt(held, 18)} tokens`)
+      record(S, "launch 2 markets (ref + USDG) + buy", !!token && held >= sim.min && sim.min > 0n, `${token ?? "no TokenLaunched event"} · got ${fmt(held, 18)} tokens (simulated ${fmt(sim.tokensOut, 18)}, min ${fmt(sim.min, 18)})`)
       if (token) tokens.push({ tag: "m", token, multi: true })
     } catch (e) { record(S, "launch 2 markets (ref + USDG) + buy", false, short(e)) }
   }
@@ -164,6 +181,7 @@ async function runChain(ci) {
       await send(buildBuyWithEth(launch, routes, amt, min, me, undefined, ci.id))
       const got = (await erc20Bal(token)) - before
       record(S, `[${tag}] buy ${fmt(amt, ref.decimals)} ${ref.symbol}`, got >= min, `quoted ${fmt(q, 18)} · got ${fmt(got, 18)} (min ${fmt(min, 18)})`)
+      record(S, `[${tag}] buy, min too high reverts`, await reverts(buildBuyWithEth(launch, routes, amt, q * 2n, me, undefined, ci.id)), "min = 2 × quote")
     } catch (e) { record(S, `[${tag}] buy`, false, short(e)) }
 
     // sell half (trade box)

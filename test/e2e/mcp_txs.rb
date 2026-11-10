@@ -3,8 +3,7 @@
 # which starts the fork and points PAR_RPC_URL_<chain> at it; never against a real node. The wallet is a fresh random
 # address that anvil impersonates and funds. Not anvil's dev accounts: on Robinhood Chain #0 carries an EIP-7702
 # delegation that sweeps any ETH it receives, which makes every sell look like it paid nothing.
-SLUG = ENV.fetch("FORK_CHAIN", "rh")
-chain = Par::Chains.get(SLUG)
+chain = Par::Chains.get(ENV.fetch("FORK_CHAIN", "rh"))
 abort "refusing to run: #{chain.rpc} is not a local fork" unless chain.rpc.match?(%r{\Ahttp://127\.0\.0\.1:\d+\z})
 
 RPC = Par::Rpc.new(chain)
@@ -13,7 +12,7 @@ RPC.request("anvil_impersonateAccount", [ ME ])
 RPC.request("anvil_setBalance", [ ME, "0x#{(10 * 10**18).to_s(16)}" ])
 $fails = 0
 def check(label, ok, detail = "")
-  puts "#{ok ? 'ok  ' : 'FAIL'} #{label}#{" (#{detail})" unless detail.empty?}"
+  puts "#{ok ? 'PASS' : 'FAIL'}  #{ENV.fetch("FORK_CHAIN", "rh").ljust(4)} mcp #{label}#{" (#{detail})" unless detail.empty?}"
   $fails += 1 unless ok
 end
 
@@ -31,8 +30,8 @@ def gas_cost(r) = r["gasUsed"].to_i(16) * r["effectiveGasPrice"].to_i(16)
 def fmt(raw) = (raw.to_f / 1e18).round(4).to_s
 
 # --- launches (what build_launch returns) ---------------------------------------------------------------
-par = chain.addr(:par)
-[ [ "launch, one market (PairPadRouter)", nil ], [ "launch, two markets (PairPadMultiRouter)", [ Par::Chains::ZERO, par ] ] ].each do |label, pairs|
+second = chain.addr(:usdg) # the second quote asset of the two-market launch (USDG on Robinhood Chain, USDC on Base)
+[ [ "launch, one market (PairPadRouter)", nil ], [ "launch, two markets (PairPadMultiRouter)", [ Par::Chains::ZERO, second ] ] ].each do |label, pairs|
   b = Par::Launching.new(chain, ME).build(name: "Fork check", symbol: "FORK", pairs:, dev_buy: 10**15)
   ok, r = send_tx(b[:tx])
   got = ok ? bal(b[:token]) : 0
@@ -45,9 +44,10 @@ ok, = send_tx(b[:tx])
 check("launch with an unreachable minimum reverts", !ok)
 
 # --- trades (what quote_trade + build_trade return) ------------------------------------------------------
-multi = ENV["FORK_MULTI_TOKEN"] || Launch.where(chain_id: chain.id, kind: "multi").joins("JOIN trades ON trades.token = launches.token AND trades.chain_id = launches.chain_id")
-                                         .group("launches.token").order(Arel.sql("count(*) desc")).limit(1).pick("launches.token")
-[ [ "single-market token", par ], [ "multi-market token", multi ] ].each do |kind, token|
+# the most traded single- and multi-market token of this chain in the local database
+busiest = ->(kind) { Launch.where(chain_id: chain.id, kind:).joins("JOIN trades ON trades.token = launches.token AND trades.chain_id = launches.chain_id")
+                           .group("launches.token").order(Arel.sql("count(*) desc")).limit(1).pick("launches.token") }
+[ [ "single-market token", busiest.("single") ], [ "multi-market token", busiest.("multi") ] ].each do |kind, token|
   next check("#{kind}: none found in the local database", false) unless token
 
   t = Par::Trading.new(chain, token)
@@ -75,5 +75,5 @@ multi = ENV["FORK_MULTI_TOKEN"] || Launch.where(chain_id: chain.id, kind: "multi
   check("buy #{kind} with an unreachable minimum reverts", !ok)
 end
 
-puts $fails.zero? ? "server transactions: all passed" : "server transactions: #{$fails} failed"
+puts $fails.zero? ? "#{chain.slug} MCP transactions: all passed" : "#{chain.slug} MCP transactions: #{$fails} failed"
 exit($fails.zero? ? 0 : 1)
