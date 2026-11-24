@@ -62,4 +62,4 @@ end
 
 gem "keccak", "~> 1.3", require: "digest/keccak"
 
-gem "mcp", "~> 1.9"
+gem "mcp", "~> 1.11"
